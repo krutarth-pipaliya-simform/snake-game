@@ -1,19 +1,46 @@
 // Phase 1 — Game update and logic functions
 import type { Player, Segment } from '../types/player';
+import type { Pellet } from '../types/pellet';
+import { POTION_CONFIGS, TOTAL_WEIGHT } from './potionConfig';
 
 export const SPEED = 300; // pixels per second
 export const COLLISION_RADIUS = 15;
-export const PELLET_RADIUS = 5;
 export const SEGMENT_DISTANCE = 15;
+
+export interface ScorePopup {
+  x: number;
+  y: number;
+  value: number;
+  age: number;
+}
 
 export interface GameState {
   player: Player;
-  pellets: Segment[];
+  pellets: Pellet[];
+  scorePopups: ScorePopup[];
   pathHistory: { x: number; y: number; dist: number }[];
   totalDist: number;
+  nextPelletId: number;
+}
+
+// Phase 1 — Weighted random potion spawn
+function spawnPotion(id: number): Pellet {
+  let roll = Math.random() * TOTAL_WEIGHT;
+  let tier = 'small';
+  for (const [key, cfg] of Object.entries(POTION_CONFIGS)) {
+    roll -= cfg.spawnWeight;
+    if (roll <= 0) { tier = key; break; }
+  }
+  return {
+    id: String(id),
+    x: Math.random() * 3800 + 100, // keep off exact border
+    y: Math.random() * 3800 + 100,
+    tier: tier as Pellet['tier'],
+  };
 }
 
 export function createInitialState(): GameState {
+  let nextPelletId = 0;
   return {
     player: {
       id: 'local',
@@ -34,10 +61,8 @@ export function createInitialState(): GameState {
       kills: 0,
       inPipeTransit: null,
     },
-    pellets: Array.from({ length: 100 }).map(() => ({
-      x: Math.random() * 4000,
-      y: Math.random() * 4000,
-    })),
+    pellets: Array.from({ length: 100 }).map(() => spawnPotion(nextPelletId++)),
+    scorePopups: [],
     pathHistory: [
       { x: 2000, y: 2000, dist: 60 },
       { x: 1985, y: 2000, dist: 45 },
@@ -46,6 +71,7 @@ export function createInitialState(): GameState {
       { x: 1940, y: 2000, dist: 0 },
     ],
     totalDist: 60,
+    nextPelletId,
   };
 }
 
@@ -107,16 +133,24 @@ export function updateGameState(state: GameState, dt: number) {
 
   // Check pellet eating
   for (let i = state.pellets.length - 1; i >= 0; i--) {
-    if (distance(head, state.pellets[i]) < COLLISION_RADIUS + PELLET_RADIUS) {
+    const pellet = state.pellets[i];
+    const cfg = POTION_CONFIGS[pellet.tier];
+    if (distance(head, pellet) < COLLISION_RADIUS + cfg.radius) {
       state.pellets.splice(i, 1);
-      p.score += 10;
-      // Add a segment at the end
-      p.segments.push({ ...p.segments[p.segments.length - 1] });
-      // Spawn new pellet
-      state.pellets.push({
-        x: Math.random() * 4000,
-        y: Math.random() * 4000,
-      });
+      p.score += cfg.scoreValue;
+      for (let g = 0; g < cfg.lengthGrowth; g++) {
+        p.segments.push({ ...p.segments[p.segments.length - 1] });
+      }
+      state.scorePopups.push({ x: pellet.x, y: pellet.y, value: cfg.scoreValue, age: 0 });
+      state.pellets.push(spawnPotion(state.nextPelletId++));
+    }
+  }
+
+  // Update score popups age (fade out after ~800ms)
+  for (let i = state.scorePopups.length - 1; i >= 0; i--) {
+    state.scorePopups[i].age += dt * 1000;
+    if (state.scorePopups[i].age > 800) {
+      state.scorePopups.splice(i, 1);
     }
   }
 

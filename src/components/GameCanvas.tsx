@@ -1,7 +1,9 @@
 // Phase 1 — Game Canvas implementation
 import { useEffect, useRef } from 'react';
-import { createInitialState, updateGameState, COLLISION_RADIUS, PELLET_RADIUS } from '../game/engine';
+import { createInitialState, updateGameState, COLLISION_RADIUS } from '../game/engine';
 import type { GameState } from '../game/engine';
+import { drawPotion } from '../game/drawPotion';
+import { POTION_CONFIGS } from '../game/potionConfig';
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -90,12 +92,10 @@ export function GameCanvas() {
       ctx.lineWidth = 4;
       ctx.strokeRect(0, 0, 4000, 4000);
 
-      // Draw pellets
-      ctx.fillStyle = '#fcd34d';
+      // Draw potions — Phase 1 potion visual
       state.pellets.forEach(pellet => {
-        ctx.beginPath();
-        ctx.arc(pellet.x, pellet.y, PELLET_RADIUS, 0, Math.PI * 2);
-        ctx.fill();
+        const cfg = POTION_CONFIGS[pellet.tier];
+        drawPotion(ctx, pellet.x, pellet.y, cfg, time);
       });
 
       // Draw player snake
@@ -119,6 +119,15 @@ export function GameCanvas() {
         ctx.textAlign = 'center';
         ctx.fillText('DIED! Press any key to reset', head.x, head.y);
       }
+
+      // Draw score popups
+      state.scorePopups.forEach(popup => {
+        const alpha = Math.max(0, 1 - popup.age / 800);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`+${popup.value}`, popup.x, popup.y - 20 - (popup.age / 40));
+      });
 
       ctx.restore();
 
