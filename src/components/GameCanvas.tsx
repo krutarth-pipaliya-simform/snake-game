@@ -1,9 +1,12 @@
 // Phase 1 — Game Canvas implementation
 import { useEffect, useRef } from 'react';
-import { createInitialState, updateGameState, COLLISION_RADIUS } from '../game/engine';
+import { createInitialState, updateGameState } from '../game/engine';
 import type { GameState } from '../game/engine';
 import { drawPotion } from '../game/drawPotion';
 import { POTION_CONFIGS } from '../game/potionConfig';
+import { drawSnake } from '../game/drawSnake';
+import { drawBackground } from '../game/drawBackground';
+import { drawHUD, drawScorePopups, drawGameOver } from '../game/drawHUD';
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,23 +77,8 @@ export function GameCanvas() {
       ctx.save();
       ctx.translate(canvas.width / 2 - head.x, canvas.height / 2 - head.y);
 
-      // Draw grid (optional, for sense of movement)
-      ctx.strokeStyle = '#2a2a3e';
-      ctx.lineWidth = 1;
-      const gridSize = 100;
-      const startX = Math.floor((head.x - canvas.width / 2) / gridSize) * gridSize;
-      const startY = Math.floor((head.y - canvas.height / 2) / gridSize) * gridSize;
-      for (let x = startX; x < startX + canvas.width + gridSize; x += gridSize) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 4000); ctx.stroke();
-      }
-      for (let y = startY; y < startY + canvas.height + gridSize; y += gridSize) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(4000, y); ctx.stroke();
-      }
-
-      // Draw border
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(0, 0, 4000, 4000);
+      // Draw grid and border
+      drawBackground(ctx, canvas.width / 2 - head.x, canvas.height / 2 - head.y, canvas.width, canvas.height);
 
       // Draw potions — Phase 1 potion visual
       state.pellets.forEach(pellet => {
@@ -100,43 +88,19 @@ export function GameCanvas() {
 
       // Draw player snake
       if (state.player.alive) {
-        ctx.fillStyle = state.player.color;
-        ctx.strokeStyle = '#1e3a8a';
-        ctx.lineWidth = 2;
-        
-        // Draw segments in reverse so head is on top
-        for (let i = state.player.segments.length - 1; i >= 0; i--) {
-          const seg = state.player.segments[i];
-          ctx.beginPath();
-          ctx.arc(seg.x, seg.y, COLLISION_RADIUS, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        }
-      } else {
-        // Draw dead text
-        ctx.fillStyle = '#ef4444';
-        ctx.font = '48px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('DIED! Press any key to reset', head.x, head.y);
+        drawSnake(ctx, state.player, time);
       }
 
       // Draw score popups
-      state.scorePopups.forEach(popup => {
-        const alpha = Math.max(0, 1 - popup.age / 800);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.font = 'bold 20px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`+${popup.value}`, popup.x, popup.y - 20 - (popup.age / 40));
-      });
+      drawScorePopups(ctx, state.scorePopups);
 
       ctx.restore();
 
       // UI overlay
-      ctx.fillStyle = 'white';
-      ctx.font = '24px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${state.player.score}`, 20, 40);
-      ctx.fillText(`Length: ${state.player.segments.length}`, 20, 70);
+      drawHUD(ctx, state.player.score, state.player.segments.length, canvas.width);
+      if (!state.player.alive) {
+        drawGameOver(ctx, state.player.score, canvas.width, canvas.height);
+      }
 
       requestRef.current = requestAnimationFrame(render);
     };
@@ -146,13 +110,11 @@ export function GameCanvas() {
   }, []);
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-game-border bg-black">
-      <canvas
-        ref={canvasRef}
-        width={800}
-        height={600}
-        className="block"
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      width={800}
+      height={600}
+      className="block"
+    />
   );
 }

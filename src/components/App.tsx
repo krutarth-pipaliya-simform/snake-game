@@ -21,7 +21,26 @@ export function App() {
             </p>
           </div>
 
-          <GameCanvas />
+          <div className="relative overflow-hidden rounded-xl border border-game-border bg-black shadow-2xl shadow-game-accent/5">
+            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
+            <GameCanvas />
+          </div>
+          
+          {/* Potion legend */}
+          <div className="flex justify-center gap-6 text-sm text-gray-400 font-medium">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#4ade80] shadow-[0_0_6px_#4ade80]" />
+              Minor (+10)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3.5 w-3.5 rounded-full bg-[#60a5fa] shadow-[0_0_6px_#60a5fa]" />
+              Greater (+30)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-4 w-4 rounded-full bg-[#c084fc] shadow-[0_0_8px_#c084fc]" />
+              Grand (+75)
+            </span>
+          </div>
         </div>
       </div>
     </Provider>
