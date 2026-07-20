@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# Pre-commit hook for Team Snake Battle
+# Enforces atomic commits — no mixing multiple phases in one commit
+
+set -e
+
+echo "[pre-commit] Checking for mixed-phase commits..."
+
+# Get the current branch name
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# Extract phase from branch name (e.g. feat/phase4-collision → phase4)
+if [[ $BRANCH =~ phase([0-9]+|setup|repo|misc) ]]; then
+  BRANCH_PHASE="${BASH_REMATCH[0]}"
+  echo "[pre-commit] Branch phase: $BRANCH_PHASE"
+else
+  # If on main or no phase in branch name, skip phase enforcement
+  echo "[pre-commit] Not on a phase branch, skipping phase check"
+  exit 0
+fi
+
+# Get staged files
+STAGED_FILES=$(git diff --cached --name-only)
+
+if [ -z "$STAGED_FILES" ]; then
+  echo "[pre-commit] No staged files, skipping validation"
+  exit 0
+fi
+
+# Heuristic phase detection from filenames
+# (this is imperfect but catches obvious cross-phase commits)
+PHASES_IN_FILES=()
+
+for file in $STAGED_FILES; do
+  case "$file" in
+    *collision*) PHASES_IN_FILES+=("phase4") ;;
+    *pipe*|*transit*) PHASES_IN_FILES+=("phase8") ;;
+    *orb*|*debuff*|*confusion*) PHASES_IN_FILES+=("phase9") ;;
+    *highlight*|*color*|*team*) PHASES_IN_FILES+=("phase10") ;;
+    *realtime*|*broadcast*) PHASES_IN_FILES+=("phase3") ;;
+    *movement*|*snake*|*pellet*) PHASES_IN_FILES+=("phase1") ;;
+    *round*|*timer*|*respawn*) PHASES_IN_FILES+=("phase6") ;;
+    *) ;;
+  esac
+done
+
+# Remove duplicates and count unique phases
+UNIQUE_PHASES=$(printf '%s\n' "${PHASES_IN_FILES[@]}" | sort -u)
+PHASE_COUNT=$(echo "$UNIQUE_PHASES" | grep -c . || echo 0)
+
+if [ "$PHASE_COUNT" -gt 1 ]; then
+  echo ""
+  echo "❌ ERROR: This commit touches multiple phases:"
+  printf '   %s\n' $UNIQUE_PHASES
+  echo ""
+  echo "   Atomic commits should touch only ONE phase."
+  echo "   Current branch is for: $BRANCH_PHASE"
+  echo ""
+  echo "   Split this into multiple commits, one per phase."
+  echo "   Then use: git commit"
+  echo ""
+  exit 1
+fi
+
+echo "[pre-commit] ✓ Atomic commit check passed"
+exit 0
