@@ -12,6 +12,7 @@ export interface ClientEvents {
     teamCap: number;
     teamCount: number;
   }>) => void;
+  'player:ready': (payload: { isReady: boolean }) => void;
   'round:start': (payload: {}) => void;
   'round:voteEnd': (payload: {}) => void;
   'input:direction': (payload: { x: number; y: number }) => void;

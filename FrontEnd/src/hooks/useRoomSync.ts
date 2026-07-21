@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { socket } from '../realtime/socketClient';
 import { setRoom } from '../store/roomSlice';
+import { setLocalPlayerId } from '../store/localPlayerSlice';
 import type { Room } from '../../../shared/types/room';
 
 export function useRoomSync() {
@@ -10,7 +11,17 @@ export function useRoomSync() {
   useEffect(() => {
     // Listen for authoritative room state from server
     socket.on('room:state', (roomState) => {
-      dispatch(setRoom(roomState as Room));
+      const room = roomState as Room;
+      dispatch(setRoom(room));
+      
+      // Update local player ID if it exists in the server players map for our socket
+      for (const player of Object.values(room.players || {})) {
+        // We know player.id is in the format "player-<socketId>"
+        if (player.id === `player-${socket.id}`) {
+          dispatch(setLocalPlayerId(player.id));
+          break;
+        }
+      }
     });
 
     socket.on('error', ({ message }) => {
@@ -47,8 +58,17 @@ export function useRoomSync() {
     socket.emit('round:start', {});
   }, []);
 
-  // Return empty presence map for compatibility with UI until fully wired
+  const setReadyState = useCallback((isReady: boolean) => {
+    socket.emit('player:ready', { isReady });
+  }, []);
+
   const presenceMap: Record<string, any> = {};
+  
+  // Use a global selector for room to generate presence map, 
+  // but it's easier to just return it directly or update it if needed.
+  // Actually, Lobby.tsx gets room from selector directly, so it can use room.players directly!
+  // Wait, Lobby currently takes presenceMap from here, let's keep it compatible if it relies on it.
+  
   return { 
     presenceMap, 
     createRoom, 
@@ -56,6 +76,7 @@ export function useRoomSync() {
     joinTeam, 
     kickPlayer, 
     updateSettings, 
-    startRound 
+    startRound,
+    setReadyState
   };
 }

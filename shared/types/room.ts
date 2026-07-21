@@ -11,6 +11,15 @@ export interface RoomSettings {
   teamCount: number;
 }
 export type RoomStatus = 'lobby' | 'in_round' | 'round_ended';
+
+/** Lightweight player info broadcast to all clients during lobby/round */
+export interface RoomPlayer {
+  id: string;
+  name: string;
+  team: string | null;
+  isReady: boolean;
+}
+
 export interface Room {
   code: string;
   hostId: string;
@@ -19,4 +28,6 @@ export interface Room {
   teams: Record<string, Team>;
   map: MapConfig;
   debuff: Debuff | null;
+  /** All connected players — keyed by player ID. Used by lobby UI. */
+  players: Record<string, RoomPlayer>;
 }

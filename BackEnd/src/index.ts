@@ -4,6 +4,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { registerRoomHandlers } from './handlers/roomHandlers';
+import { registerRoundHandlers } from './handlers/roundHandlers';
+import { registerGameHandlers } from './handlers/gameHandlers';
 import type { ClientEvents, ServerEvents } from '@shared/types/events';
 
 dotenv.config();
@@ -19,6 +21,8 @@ const io = new Server<ClientEvents, ServerEvents>(httpServer, {
 io.on('connection', (socket) => {
   console.log(`[Socket] Connected: ${socket.id}`);
   registerRoomHandlers(io, socket);
+  registerRoundHandlers(io, socket);
+  registerGameHandlers(io, socket);
   socket.on('disconnect', () => {
     console.log(`[Socket] Disconnected: ${socket.id}`);
   });

@@ -24,6 +24,9 @@ export const localPlayerSlice = createSlice({
     setName(state, action: PayloadAction<string>) {
       state.name = action.payload;
     },
+    setLocalPlayerId(state, action: PayloadAction<string>) {
+      state.id = action.payload;
+    },
     setReady(state, action: PayloadAction<boolean>) {
       state.isReady = action.payload;
     },
@@ -34,5 +37,5 @@ export const localPlayerSlice = createSlice({
   },
 });
 
-export const { setName, setReady, resetPlayer } = localPlayerSlice.actions;
+export const { setName, setLocalPlayerId, setReady, resetPlayer } = localPlayerSlice.actions;
 export default localPlayerSlice.reducer;
