@@ -13,7 +13,7 @@ function AppContent() {
     return <Lobby />;
   }
   
-  if (roomStatus === 'in_round' || roomStatus === 'round_ended') {
+  if (roomStatus === 'in_round' || roomStatus === 'round_ended' || roomStatus === 'match_ended') {
     return (
       <div className="w-full max-w-5xl space-y-8 text-center">
         {/* Logo / Title */}

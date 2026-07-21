@@ -11,6 +11,7 @@ export interface ClientEvents {
     respawnDelaySeconds: number | null;
     teamCap: number;
     teamCount: number;
+    roundsPerMatch: number;
   }>) => void;
   'player:ready': (payload: { isReady: boolean }) => void;
   'round:start': (payload: {}) => void;

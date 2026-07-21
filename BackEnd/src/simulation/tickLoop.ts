@@ -1,7 +1,230 @@
 import { RoomSimulation } from './RoomSimulation';
 import type { Server } from 'socket.io';
 import type { ClientEvents, ServerEvents } from '@shared/types/events';
+import type { Segment } from '@shared/types/player';
+import type { Pellet } from '@shared/types/pellet';
+
+const SPEED = 300; // pixels per second
+const COLLISION_RADIUS = 15;
+const SEGMENT_DISTANCE = 15;
+
+function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+let nextPelletId = 0;
+
+function spawnPellet(room: RoomSimulation): Pellet {
+  return {
+    id: String(nextPelletId++),
+    x: Math.random() * (room.map.width - 200) + 100,
+    y: Math.random() * (room.map.height - 200) + 100,
+    tier: 'small', // simplified for backend
+  };
+}
 
 export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, ServerEvents>) {
-  // Stub for game loop
+  const dt = 0.05; // 50ms per tick (20Hz)
+  const moveDist = SPEED * dt;
+
+  const allPlayers = Object.values(room.players);
+
+  // 1. Move players
+  for (const player of allPlayers) {
+    if (!player.alive) continue;
+
+    const head = { ...player.segments[0] };
+    if (!head) continue; // safety check
+
+    const speedMultiplier = player.boosting ? 1.5 : 1.0;
+    const currentMoveDist = moveDist * speedMultiplier;
+
+    head.x += player.direction.x * currentMoveDist;
+    head.y += player.direction.y * currentMoveDist;
+
+    // Clamp to map and kill if they hit the boundary
+    if (head.x <= 0 || head.x >= room.map.width || head.y <= 0 || head.y >= room.map.height) {
+      player.alive = false;
+    }
+    
+    // Clamp to map visually just in case
+    head.x = Math.max(0, Math.min(room.map.width, head.x));
+    head.y = Math.max(0, Math.min(room.map.height, head.y));
+
+    // Simple segment trailing for the backend:
+    // Insert new head, pop tail
+    player.segments.unshift(head);
+    
+    // Boosting shrinks the snake
+    if (player.boosting && player.segments.length > 3 && Math.random() < 0.2) {
+        player.segments.pop(); // additional pop to shrink
+    }
+    
+    // Always pop one to maintain length unless eating
+    player.segments.pop(); 
+  }
+
+  // 2. Collision & Pellets
+  for (const player of allPlayers) {
+    if (!player.alive || player.segments.length === 0) continue;
+    
+    const head = player.segments[0];
+    
+    // Check pellet eating
+    for (let i = room.map.pellets.length - 1; i >= 0; i--) {
+      const pellet = room.map.pellets[i];
+      const pelletRadius = pellet.tier === 'large' ? 15 : pellet.tier === 'medium' ? 10 : 6;
+      if (distance(head, pellet) < COLLISION_RADIUS + pelletRadius) {
+        room.map.pellets.splice(i, 1);
+        player.score += 10;
+        player.segments.push({ ...player.segments[player.segments.length - 1] }); // grow 1 segment
+      }
+    }
+    
+    // Check player collisions
+    let died = false;
+    for (const other of allPlayers) {
+      if (!other.alive || other.segments.length === 0) continue;
+      
+      const isTeammate = player.team === other.team;
+      const debuffActive = room.debuff && room.debuff.teams.includes(player.team || '');
+      
+      if (player.id !== other.id && isTeammate && !debuffActive) continue;
+      
+      for (let i = 0; i < other.segments.length; i++) {
+        // Skip comparing own head with own head
+        if (player.id === other.id && i === 0) continue;
+        
+        // Don't collide with own body segments that are close to the head (to prevent instant death on tight turns)
+        if (player.id === other.id && i < 10) continue;
+
+        const seg = other.segments[i];
+        if (distance(head, seg) < COLLISION_RADIUS) {
+          if (i === 0 && player.id !== other.id) {
+            // Head-to-Head
+            if (player.segments.length > other.segments.length) {
+              other.alive = false;
+              player.kills += 1;
+            } else if (player.segments.length < other.segments.length) {
+              player.alive = false;
+              other.kills += 1;
+              died = true;
+            } else {
+              player.alive = false;
+              other.alive = false;
+              died = true;
+            }
+          } else {
+            // Head-to-Body or Head-to-Own-Body
+            player.alive = false;
+            if (player.id !== other.id) {
+              other.kills += 1;
+            }
+            died = true;
+          }
+          break; // Stop checking this player's collisions this tick
+        }
+      }
+      if (died) break;
+    }
+  }
+
+  // Handle death (drop pellets)
+  for (const player of allPlayers) {
+    if (!player.alive && player.segments.length > 0) {
+      // Turn segments into pellets
+      for (const seg of player.segments) {
+        room.map.pellets.push({
+          id: String(nextPelletId++),
+          x: seg.x,
+          y: seg.y,
+          tier: 'small',
+        });
+      }
+      player.segments = []; // Clear segments so we don't drop again
+    }
+  }
+
+  // Refill pellets if too low
+  while (room.map.pellets.length < 50) {
+    room.map.pellets.push(spawnPellet(room));
+  }
+
+  // 3. Round end condition check (Phase 6)
+  if (room.settings.roundDurationSeconds && room.roundStartedAt) {
+    const elapsedSeconds = (Date.now() - room.roundStartedAt) / 1000;
+    if (elapsedSeconds >= room.settings.roundDurationSeconds) {
+      if (room.currentRound < room.settings.roundsPerMatch) {
+        room.status = 'round_ended';
+        // Auto-start next round after a delay, but we'll do this on the frontend or via a timeout here.
+        // For now just set round_ended, and in roundHandlers we wait or we just set match_ended?
+        // Wait, the user said "after the match ends people will be in the room again"
+      } else {
+        room.status = 'match_ended';
+      }
+      
+      if (room.tickInterval) {
+        clearInterval(room.tickInterval);
+        room.tickInterval = null;
+      }
+      io.to(room.code).emit('round:ended', { winner: null, teamResults: {} });
+      io.to(room.code).emit('room:state', room.toClientRoom());
+      
+      // Auto-transition
+      if (room.status === 'round_ended') {
+        setTimeout(() => {
+          room.currentRound++;
+          room.status = 'in_round';
+          room.roundStartedAt = Date.now();
+          // Respawn players
+          const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+          for (const p of Object.values(room.players)) {
+            p.alive = true;
+            p.score = 0;
+            p.kills = 0;
+            const spawnX = Math.random() * (room.map.width - 400) + 200;
+            const spawnY = Math.random() * (room.map.height - 400) + 200;
+            p.direction = dirs[Math.floor(Math.random() * dirs.length)];
+            p.segments = [];
+            for (let i = 0; i < 5; i++) {
+              p.segments.push({ x: spawnX - (p.direction.x * i * 15), y: spawnY - (p.direction.y * i * 15) });
+            }
+          }
+          room.tickInterval = setInterval(() => simulateTick(room, io), 50);
+          io.to(room.code).emit('room:state', room.toClientRoom());
+        }, 5000); // 5 seconds between rounds
+      } else if (room.status === 'match_ended') {
+        setTimeout(() => {
+          room.currentRound = 1;
+          room.status = 'lobby';
+          for (const p of Object.values(room.players)) { p.isReady = false; }
+          io.to(room.code).emit('room:state', room.toClientRoom());
+        }, 5000); // 5 seconds then back to lobby
+      }
+    }
+  }
+
+  // 4. Broadcast
+  if (room.status === 'in_round') {
+    io.to(room.code).emit('tick:state', {
+      players: Object.values(room.players).map(p => ({
+         id: p.id,
+         socketId: p.socketId,
+         name: p.name,
+         team: p.team,
+         alive: p.alive,
+         color: p.color,
+         segments: p.segments,
+         direction: p.direction,
+         boosting: p.boosting,
+         score: p.score,
+         kills: p.kills,
+         inPipeTransit: p.inPipeTransit,
+         lastInputAt: p.lastInputAt,
+         isReady: p.isReady,
+      })),
+      map: room.map,
+      debuff: room.debuff,
+    });
+  }
 }

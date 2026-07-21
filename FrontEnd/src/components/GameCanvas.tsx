@@ -1,12 +1,14 @@
 // Phase 1 — Game Canvas implementation
 import { useEffect, useRef } from 'react';
-import { createInitialState, updateGameState } from '../game/engine';
+import { createInitialState, applyServerState } from '../game/engine';
 import type { GameState } from '../game/engine';
 import { drawPotion } from '../game/drawPotion';
 import { POTION_CONFIGS } from '../game/potionConfig';
 import { drawSnake } from '../game/drawSnake';
 import { drawBackground } from '../game/drawBackground';
 import { drawHUD, drawScorePopups, drawGameOver } from '../game/drawHUD';
+import { socket } from '../realtime/socketClient';
+import { store } from '../store/store';
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -14,43 +16,80 @@ export function GameCanvas() {
   const lastTimeRef = useRef<number>(0);
   const requestRef = useRef<number>(0);
 
+  useEffect(() => {
+    stateRef.current.localPlayerId = `player-${socket.id}`;
+    
+    const handleTick = (serverState: any) => {
+      applyServerState(stateRef.current, serverState, 0); // Note: dt handling simplified here
+    };
+
+    socket.on('tick:state', handleTick);
+    return () => {
+      socket.off('tick:state', handleTick);
+    };
+  }, []);
+
   // Keyboard input
+  const currentDirRef = useRef({ x: 1, y: 0 });
+  
+  // Sync initial direction from server when we first get the player
+  useEffect(() => {
+    const p = stateRef.current.players[stateRef.current.localPlayerId];
+    if (p) {
+      currentDirRef.current = { ...p.direction };
+    }
+  }, [stateRef.current.localPlayerId]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const p = stateRef.current.player;
-      if (!p.alive) {
-        // Reset on any key if dead
-        stateRef.current = createInitialState();
-        return;
-      }
+      const p = stateRef.current.players[stateRef.current.localPlayerId];
+      if (!p || !p.alive) return;
 
-      const dir = { ...p.direction };
+      const currentDir = currentDirRef.current;
+      const dir = { ...currentDir };
       switch (e.key.toLowerCase()) {
         case 'w':
         case 'arrowup':
-          if (dir.y !== 1) { dir.x = 0; dir.y = -1; }
+          if (currentDir.y !== 1) { dir.x = 0; dir.y = -1; }
           break;
         case 's':
         case 'arrowdown':
-          if (dir.y !== -1) { dir.x = 0; dir.y = 1; }
+          if (currentDir.y !== -1) { dir.x = 0; dir.y = 1; }
           break;
         case 'a':
         case 'arrowleft':
-          if (dir.x !== 1) { dir.x = -1; dir.y = 0; }
+          if (currentDir.x !== 1) { dir.x = -1; dir.y = 0; }
           break;
         case 'd':
         case 'arrowright':
-          if (dir.x !== -1) { dir.x = 1; dir.y = 0; }
+          if (currentDir.x !== -1) { dir.x = 1; dir.y = 0; }
+          break;
+        case ' ': // spacebar for boost
+          socket.emit('input:boost', { boosting: true });
           break;
       }
-      p.direction = dir;
+      
+      if (dir.x !== currentDir.x || dir.y !== currentDir.y) {
+        currentDirRef.current = dir;
+        socket.emit('input:direction', dir);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        socket.emit('input:boost', { boosting: false });
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, []);
 
-  // Game loop
+  // Game loop (rendering only)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -62,34 +101,37 @@ export function GameCanvas() {
       const dt = (time - lastTimeRef.current) / 1000;
       lastTimeRef.current = time;
 
-      // Update state
-      updateGameState(stateRef.current, dt);
+      // Update purely visual client-side state like popup fading
+      applyServerState(stateRef.current, { players: Object.values(stateRef.current.players) }, dt);
 
       // Render
-      // 1. Clear canvas
       ctx.fillStyle = '#1a1a2e'; // dark background
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const state = stateRef.current;
-      const head = state.player.segments[0];
+      const localPlayer = state.players[state.localPlayerId];
+      
+      // If no local player yet, just center on 2000, 2000
+      const head = localPlayer?.segments?.[0] || { x: 2000, y: 2000 };
 
-      // Camera: center on player head
       ctx.save();
       ctx.translate(canvas.width / 2 - head.x, canvas.height / 2 - head.y);
 
       // Draw grid and border
       drawBackground(ctx, canvas.width / 2 - head.x, canvas.height / 2 - head.y, canvas.width, canvas.height);
 
-      // Draw potions — Phase 1 potion visual
+      // Draw potions
       state.pellets.forEach(pellet => {
         const cfg = POTION_CONFIGS[pellet.tier];
-        drawPotion(ctx, pellet.x, pellet.y, cfg, time);
+        if (cfg) drawPotion(ctx, pellet.x, pellet.y, cfg, time);
       });
 
-      // Draw player snake
-      if (state.player.alive) {
-        drawSnake(ctx, state.player, time);
-      }
+      // Draw all players
+      Object.values(state.players).forEach(player => {
+        if (player.alive) {
+          drawSnake(ctx, player as any, time);
+        }
+      });
 
       // Draw score popups
       drawScorePopups(ctx, state.scorePopups);
@@ -97,9 +139,32 @@ export function GameCanvas() {
       ctx.restore();
 
       // UI overlay
-      drawHUD(ctx, state.player.score, state.player.segments.length, canvas.width);
-      if (!state.player.alive) {
-        drawGameOver(ctx, state.player.score, canvas.width, canvas.height);
+      if (localPlayer) {
+        drawHUD(ctx, localPlayer.score, localPlayer.segments.length, canvas.width);
+        
+        const room = store.getState().room.current;
+        if (room?.status === 'round_ended') {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 48px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`Round ${room.currentRound} Ended`, canvas.width / 2, canvas.height / 2 - 20);
+          ctx.font = '24px sans-serif';
+          ctx.fillText('Next round starting...', canvas.width / 2, canvas.height / 2 + 30);
+        } else if (room?.status === 'match_ended') {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#fde047'; // yellow
+          ctx.font = 'bold 56px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Match Complete!', canvas.width / 2, canvas.height / 2 - 20);
+          ctx.fillStyle = '#fff';
+          ctx.font = '24px sans-serif';
+          ctx.fillText('Returning to Lobby...', canvas.width / 2, canvas.height / 2 + 40);
+        } else if (!localPlayer.alive) {
+          drawGameOver(ctx, localPlayer.score, canvas.width, canvas.height);
+        }
       }
 
       requestRef.current = requestAnimationFrame(render);

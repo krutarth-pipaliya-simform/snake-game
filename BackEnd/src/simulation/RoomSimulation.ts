@@ -23,16 +23,19 @@ export class RoomSimulation {
   roundStartedAt: number | null;
   votesToEndRound: Set<string>;
   tickInterval: ReturnType<typeof setInterval> | null;
+  currentRound: number;
 
   constructor(code: string, hostId: string, hostSocketId: string, hostName: string) {
     this.code = code;
     this.hostId = hostId;
     this.status = 'lobby';
+    this.currentRound = 1;
     this.settings = {
       roundDurationSeconds: 180,
       respawnDelaySeconds: null,
       teamCap: 5,
       teamCount: 2,
+      roundsPerMatch: 3,
     };
     this.teams = {
       'team-1': { leaderId: '', playerIds: [] },
@@ -42,6 +45,7 @@ export class RoomSimulation {
       width: 4000,
       height: 4000,
       pipes: [],
+      pellets: [],
       confusionOrb: { x: 2000, y: 2000, active: true },
     };
     this.debuff = null;
@@ -78,6 +82,7 @@ export class RoomSimulation {
       code: this.code,
       hostId: this.hostId,
       status: this.status,
+      currentRound: this.currentRound,
       settings: { ...this.settings },
       teams: structuredClone(this.teams),
       map: structuredClone(this.map),

@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { selectRoom, selectLocalPlayer } from '../store/selectors';
 import { setReady } from '../store/localPlayerSlice';
 import { useRoomSync } from '../hooks/useRoomSync';
-import type { Room } from '../../../shared/types/room';
+
 
 export function Lobby() {
   const room = useSelector(selectRoom);
@@ -14,6 +14,7 @@ export function Lobby() {
   const [teamCountStr, setTeamCountStr] = useState('');
   const [teamCapStr, setTeamCapStr] = useState('');
   const [roundDurationStr, setRoundDurationStr] = useState('');
+  const [roundsPerMatchStr, setRoundsPerMatchStr] = useState('');
   const [respawnDelayStr, setRespawnDelayStr] = useState('');
   const [isRespawnEnabled, setIsRespawnEnabled] = useState(false);
 
@@ -22,6 +23,7 @@ export function Lobby() {
       setTeamCountStr(room.settings.teamCount.toString());
       setTeamCapStr(room.settings.teamCap.toString());
       setRoundDurationStr(room.settings.roundDurationSeconds.toString());
+      setRoundsPerMatchStr((room.settings.roundsPerMatch || 1).toString());
       setIsRespawnEnabled(room.settings.respawnDelaySeconds !== null);
       if (room.settings.respawnDelaySeconds !== null) {
         setRespawnDelayStr(room.settings.respawnDelaySeconds.toString());
@@ -46,11 +48,6 @@ export function Lobby() {
     }
   };
 
-  const enforceMin = (key: keyof Room['settings'], min: number, raw: string) => {
-    let val = parseInt(raw);
-    if (isNaN(val) || val < min) val = min;
-    updateSettings({ [key]: val });
-  };
 
   const handleTeamCountBlur = () => {
     const val = parseInt(teamCountStr);
@@ -70,6 +67,13 @@ export function Lobby() {
     const val = parseInt(roundDurationStr);
     if (!isNaN(val) && val >= 30) {
       updateSettings({ roundDurationSeconds: val });
+    }
+  };
+
+  const handleRoundsPerMatchBlur = () => {
+    const val = parseInt(roundsPerMatchStr);
+    if (!isNaN(val) && val >= 1) {
+      updateSettings({ roundsPerMatch: val });
     }
   };
 
@@ -152,7 +156,7 @@ export function Lobby() {
                           </div>
                           <div className="shrink-0 ml-2">
                             {iAmLeader && !isMe && (
-                              <button onClick={() => kickPlayer(pId)} className="text-xs text-red-400 hover:text-red-300 uppercase font-bold">Kick</button>
+                              <button onClick={() => kickPlayer(pId)} className="text-xs text-red-400 hover:text-red-300 uppercase font-bold cursor-pointer disabled:cursor-not-allowed">Kick</button>
                             )}
                           </div>
                         </div>
@@ -161,7 +165,7 @@ export function Lobby() {
                   </div>
                   <div className="px-3 pb-3 pt-1">
                     {!isMyTeam ? (
-                      <button onClick={() => joinTeam(teamId)} disabled={team.playerIds.length >= room.settings.teamCap} className="w-full py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white text-sm font-medium rounded transition-colors">
+                      <button onClick={() => joinTeam(teamId)} disabled={team.playerIds.length >= room.settings.teamCap} className="w-full py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white text-sm font-medium rounded transition-colors cursor-pointer disabled:cursor-not-allowed">
                         Join {teamId.replace('-', ' ')}
                       </button>
                     ) : (
@@ -176,76 +180,77 @@ export function Lobby() {
 
         {/* ======================== SETTINGS ======================== */}
         <div className="space-y-4">
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 space-y-2">
-            <h3 className="text-lg font-bold text-white mb-2">Settings</h3>
-            <SettingField label="Team Count (min 2)">
-              <input 
-                type="number" 
-                value={teamCountStr} 
-                disabled={!isHost} 
-                onBlur={handleTeamCountBlur} 
-                onChange={(e) => setTeamCountStr(e.target.value)} 
-                className={`lobby-input ${parseInt(teamCountStr) < 2 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
-              />
-              <p className={`text-xs text-red-400 min-h-[16px] transition-opacity ${parseInt(teamCountStr) < 2 ? 'opacity-100' : 'opacity-0'}`}>
-                Invalid input: Minimum team count is 2.
-              </p>
-            </SettingField>
-            <SettingField label="Team Cap">
-              <input 
-                type="number" 
-                value={teamCapStr} 
-                disabled={!isHost} 
-                onBlur={handleTeamCapBlur} 
-                onChange={(e) => setTeamCapStr(e.target.value)} 
-                className={`lobby-input ${parseInt(teamCapStr) < 1 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
-              />
-              <p className={`text-xs text-red-400 min-h-[16px] transition-opacity ${parseInt(teamCapStr) < 1 ? 'opacity-100' : 'opacity-0'}`}>
-                Invalid input: Minimum team cap is 1.
-              </p>
-            </SettingField>
-            <SettingField label="Round Duration (s)">
-              <input 
-                type="number" 
-                value={roundDurationStr} 
-                disabled={!isHost} 
-                onBlur={handleRoundDurationBlur} 
-                onChange={(e) => setRoundDurationStr(e.target.value)} 
-                className={`lobby-input ${parseInt(roundDurationStr) < 30 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
-              />
-              <p className={`text-xs text-red-400 min-h-[16px] transition-opacity ${parseInt(roundDurationStr) < 30 ? 'opacity-100' : 'opacity-0'}`}>
-                Invalid input: Minimum round duration is 30s.
-              </p>
-            </SettingField>
-            <SettingField label="Respawn Mode">
-              <select 
-                disabled={!isHost} 
-                value={isRespawnEnabled ? 'timer' : 'none'} 
-                onChange={(e) => handleRespawnModeChange(e.target.value === 'timer')} 
-                className="lobby-input"
-              >
-                <option value="none">No respawn</option>
-                <option value="timer">Respawn after N seconds</option>
-              </select>
-              
-              <input 
-                type="number" 
-                value={respawnDelayStr} 
-                disabled={!isHost || !isRespawnEnabled} 
-                onBlur={handleRespawnDelayBlur}
-                onChange={(e) => setRespawnDelayStr(e.target.value)} 
-                className={`lobby-input mt-2 transition-opacity ${isRespawnEnabled && (parseInt(respawnDelayStr) < 1 || parseInt(respawnDelayStr) > 60) ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
-                style={{ 
-                  opacity: isRespawnEnabled ? 1 : 0, 
-                  pointerEvents: isRespawnEnabled ? 'auto' : 'none' 
-                }} 
-                tabIndex={isRespawnEnabled ? 0 : -1} 
-                aria-hidden={!isRespawnEnabled} 
-              />
-              <p className={`text-xs text-red-400 min-h-[16px] transition-opacity ${isRespawnEnabled && (parseInt(respawnDelayStr) < 1 || parseInt(respawnDelayStr) > 60) ? 'opacity-100' : 'opacity-0'}`}>
-                Invalid input: Must be between 1 and 60.
-              </p>
-            </SettingField>
+          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <h3 className="text-lg font-bold text-white mb-3">Settings</h3>
+            
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+              <SettingField label="Team Count">
+                <input 
+                  type="number" 
+                  value={teamCountStr} 
+                  disabled={!isHost} 
+                  onBlur={handleTeamCountBlur} 
+                  onChange={(e) => setTeamCountStr(e.target.value)} 
+                  className={`lobby-input ${parseInt(teamCountStr) < 2 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
+                />
+              </SettingField>
+              <SettingField label="Team Cap">
+                <input 
+                  type="number" 
+                  value={teamCapStr} 
+                  disabled={!isHost} 
+                  onBlur={handleTeamCapBlur} 
+                  onChange={(e) => setTeamCapStr(e.target.value)} 
+                  className={`lobby-input ${parseInt(teamCapStr) < 1 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
+                />
+              </SettingField>
+              <SettingField label="Round Length">
+                <input 
+                  type="number" 
+                  value={roundDurationStr} 
+                  disabled={!isHost} 
+                  onBlur={handleRoundDurationBlur} 
+                  onChange={(e) => setRoundDurationStr(e.target.value)} 
+                  className={`lobby-input ${parseInt(roundDurationStr) < 30 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
+                />
+              </SettingField>
+              <SettingField label="Match Rounds">
+                <input 
+                  type="number" 
+                  value={roundsPerMatchStr} 
+                  disabled={!isHost} 
+                  onBlur={handleRoundsPerMatchBlur} 
+                  onChange={(e) => setRoundsPerMatchStr(e.target.value)} 
+                  className={`lobby-input ${parseInt(roundsPerMatchStr) < 1 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
+                />
+              </SettingField>
+            </div>
+
+            <div className="mt-3">
+              <SettingField label="Respawn Mode">
+                <select 
+                  disabled={!isHost} 
+                  value={isRespawnEnabled ? 'timer' : 'none'} 
+                  onChange={(e) => handleRespawnModeChange(e.target.value === 'timer')} 
+                  className="lobby-input"
+                >
+                  <option value="none">No respawn</option>
+                  <option value="timer">Respawn after N seconds</option>
+                </select>
+                
+                <input 
+                  type="number" 
+                  value={respawnDelayStr} 
+                  disabled={!isHost || !isRespawnEnabled} 
+                  onBlur={handleRespawnDelayBlur}
+                  onChange={(e) => setRespawnDelayStr(e.target.value)} 
+                  className={`lobby-input mt-2 transition-opacity ${isRespawnEnabled && (parseInt(respawnDelayStr) < 1 || parseInt(respawnDelayStr) > 60) ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
+                  style={{ 
+                    display: isRespawnEnabled ? 'block' : 'none' 
+                  }} 
+                />
+              </SettingField>
+            </div>
           </div>
           <div className="space-y-2">
             <button 
@@ -254,7 +259,7 @@ export function Lobby() {
                 dispatch(setReady(newReady));
                 setReadyState(newReady);
               }} 
-              className={`w-full py-2.5 rounded-lg font-bold text-white transition-all ${localPlayer.isReady ? 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-600/20' : 'bg-gray-600 hover:bg-gray-500'}`}
+              className={`w-full py-2.5 rounded-lg font-bold text-white transition-all cursor-pointer disabled:cursor-not-allowed ${localPlayer.isReady ? 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-600/20' : 'bg-gray-600 hover:bg-gray-500'}`}
             >
               {localPlayer.isReady ? '✓ Ready' : 'Click to Ready Up'}
             </button>
@@ -262,7 +267,7 @@ export function Lobby() {
               <button 
                 onClick={startRound} 
                 disabled={!canStart} 
-                className="w-full py-3 bg-game-accent hover:bg-game-accent-glow disabled:bg-gray-800 disabled:text-gray-500 text-white font-extrabold text-lg rounded-lg transition-all shadow-lg shadow-game-accent/20 disabled:shadow-none relative group"
+                className="w-full py-3 bg-game-accent hover:bg-game-accent-glow disabled:bg-gray-800 disabled:text-gray-500 text-white font-extrabold text-lg rounded-lg transition-all shadow-lg shadow-game-accent/20 disabled:shadow-none relative group cursor-pointer disabled:cursor-not-allowed"
               >
                 Start Game
                 {!canStart && (

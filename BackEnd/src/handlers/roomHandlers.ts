@@ -208,6 +208,9 @@ export function registerRoomHandlers(
       room.settings.respawnDelaySeconds =
         v === null ? null : Math.min(60, Math.max(1, v ?? 5));
     }
+    if (settings.roundsPerMatch !== undefined) {
+      room.settings.roundsPerMatch = Math.max(1, settings.roundsPerMatch);
+    }
     if (settings.teamCount !== undefined) {
       const newCount = Math.max(2, settings.teamCount);
       if (newCount !== room.settings.teamCount) {
