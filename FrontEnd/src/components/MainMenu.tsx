@@ -1,65 +1,22 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectLocalPlayer } from '../store/selectors';
 import { setName } from '../store/localPlayerSlice';
-import { setRoom } from '../store/roomSlice';
-import type { Room } from '../types/room';
+import { useRoomSync } from '../hooks/useRoomSync';
 
 export function MainMenu() {
   const dispatch = useDispatch();
   const localPlayer = useSelector(selectLocalPlayer);
   const [joinCode, setJoinCode] = useState('');
+  const { createRoom, joinRoom } = useRoomSync();
 
   const handleCreateRoom = () => {
-    // Generate 4 letter code
-    const code = Math.random().toString(36).substring(2, 6).toUpperCase();
-    
-    // Create Room object
-    const newRoom: Room = {
-      code,
-      hostId: localPlayer.id,
-      status: 'lobby',
-      settings: {
-        roundDurationSeconds: 180,
-        respawnDelaySeconds: null,
-        teamCap: 5,
-        teamCount: 2,
-      },
-      teams: {
-        'team-1': { leaderId: '', playerIds: [] },
-        'team-2': { leaderId: '', playerIds: [] },
-      },
-      map: {
-        width: 4000,
-        height: 4000,
-        pipes: [
-          { id: 'pipe-1', x: 100, y: 100, linkedPipeId: 'pipe-2' },
-          { id: 'pipe-2', x: 3800, y: 3800, linkedPipeId: 'pipe-1' },
-        ],
-        confusionOrb: null,
-      },
-      debuff: null,
-    };
-
-    dispatch(setRoom(newRoom));
+    createRoom(localPlayer.name);
   };
 
   const handleJoinRoom = () => {
     if (!joinCode) return;
-    
-    // Create a dummy room object just to get us into the lobby state.
-    // The useRoomSync hook will sync the REAL room from the host!
-    const tempRoom: Room = {
-      code: joinCode.toUpperCase(),
-      hostId: '',
-      status: 'lobby',
-      settings: { roundDurationSeconds: 180, respawnDelaySeconds: null, teamCap: 5, teamCount: 2 },
-      teams: {},
-      map: { width: 4000, height: 4000, pipes: [], confusionOrb: null },
-      debuff: null,
-    };
-    
-    dispatch(setRoom(tempRoom));
+    joinRoom(joinCode, localPlayer.name);
   };
 
   return (
