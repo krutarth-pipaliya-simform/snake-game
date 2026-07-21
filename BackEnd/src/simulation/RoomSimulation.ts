@@ -24,12 +24,14 @@ export class RoomSimulation {
   votesToEndRound: Set<string>;
   tickInterval: ReturnType<typeof setInterval> | null;
   currentRound: number;
+  tickCount: number;
 
   constructor(code: string, hostId: string, hostSocketId: string, hostName: string) {
     this.code = code;
     this.hostId = hostId;
     this.status = 'lobby';
     this.currentRound = 1;
+    this.tickCount = 0;
     this.settings = {
       roundDurationSeconds: 180,
       respawnDelaySeconds: null,

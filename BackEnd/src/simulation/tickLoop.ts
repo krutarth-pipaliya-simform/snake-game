@@ -24,6 +24,7 @@ function spawnPellet(room: RoomSimulation): Pellet {
 }
 
 export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, ServerEvents>) {
+  room.tickCount++;
   const dt = 0.05; // 50ms per tick (20Hz)
   const moveDist = SPEED * dt;
 
@@ -36,7 +37,8 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     const head = { ...player.segments[0] };
     if (!head) continue; // safety check
 
-    const speedMultiplier = player.boosting ? 1.5 : 1.0;
+    const isActuallyBoosting = player.boosting && player.segments.length > 3;
+    const speedMultiplier = isActuallyBoosting ? 1.5 : 1.0;
     const currentMoveDist = moveDist * speedMultiplier;
 
     head.x += player.direction.x * currentMoveDist;
@@ -55,8 +57,8 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     // Insert new head, pop tail
     player.segments.unshift(head);
     
-    // Boosting shrinks the snake
-    if (player.boosting && player.segments.length > 3 && Math.random() < 0.2) {
+    // Boosting shrinks the snake predictably (every 5 ticks)
+    if (isActuallyBoosting && room.tickCount % 5 === 0) {
         player.segments.pop(); // additional pop to shrink
     }
     
