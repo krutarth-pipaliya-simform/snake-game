@@ -6,20 +6,33 @@ const HEAD_R = 15;      // matches COLLISION_RADIUS in engine
 export function drawSnake(
   ctx: CanvasRenderingContext2D,
   player: Player,
-  _time: number,
+  time: number,
+  isScrambled: boolean = false
 ) {
   const segs = player.segments;
   const total = segs.length;
   if (total === 0) return;
 
+  const displayColor = isScrambled ? `hsl(${(time / 5) % 360}, 100%, 50%)` : player.color;
+
   // Add subtle glow to the entire snake
   ctx.save();
   ctx.shadowBlur = 4;
-  ctx.shadowColor = player.color;
+  ctx.shadowColor = displayColor;
 
-  ctx.fillStyle = player.color;
-  ctx.strokeStyle = '#1e3a8a';
+  ctx.fillStyle = displayColor;
+  ctx.strokeStyle = isScrambled ? '#ff0000' : '#1e3a8a';
   ctx.lineWidth = 2;
+
+  // Ghost Jitter
+  let jitterX = 0;
+  let jitterY = 0;
+  if (isScrambled) {
+    jitterX = (Math.random() - 0.5) * 20;
+    jitterY = (Math.random() - 0.5) * 20;
+    ctx.translate(jitterX, jitterY);
+    ctx.globalAlpha = 0.5; // glitchy transparency
+  }
 
   // Draw body segments (tail up to neck)
   for (let i = total - 1; i >= 1; i--) {
@@ -31,12 +44,12 @@ export function drawSnake(
   }
 
   // Draw Head
-  _drawHead(ctx, player);
+  _drawHead(ctx, player, displayColor);
 
   ctx.restore();
 }
 
-function _drawHead(ctx: CanvasRenderingContext2D, player: Player) {
+function _drawHead(ctx: CanvasRenderingContext2D, player: Player, displayColor: string) {
   const head = player.segments[0];
   const r = HEAD_R;
   const angle = Math.atan2(player.direction.y, player.direction.x);
@@ -48,7 +61,7 @@ function _drawHead(ctx: CanvasRenderingContext2D, player: Player) {
   // Draw head base
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.fillStyle = player.color;
+  ctx.fillStyle = displayColor;
   ctx.fill();
   
   // Inherit stroke from parent context (set in drawSnake)

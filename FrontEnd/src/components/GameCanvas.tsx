@@ -5,7 +5,7 @@ import type { GameState } from '../game/engine';
 import { drawPotion } from '../game/drawPotion';
 import { POTION_CONFIGS } from '../game/potionConfig';
 import { drawSnake } from '../game/drawSnake';
-import { drawBackground, drawPipes } from '../game/drawBackground';
+import { drawBackground, drawPipes, drawConfusionOrb, drawFogOfWar } from '../game/drawBackground';
 import { drawHUD, drawScorePopups, drawGameOver } from '../game/drawHUD';
 import { socket } from '../realtime/socketClient';
 import { store } from '../store/store';
@@ -117,11 +117,19 @@ export function GameCanvas() {
       ctx.save();
       ctx.translate(canvas.width / 2 - head.x, canvas.height / 2 - head.y);
 
-      // Draw grid and border
-      drawBackground(ctx, canvas.width / 2 - head.x, canvas.height / 2 - head.y, canvas.width, canvas.height);
+      // Check if local player is confused
+      const isConfused = !!(state.debuff && localPlayer?.team && state.debuff.teams.includes(localPlayer.team));
+
+      // Draw grid and border (wavy if confused)
+      drawBackground(ctx, canvas.width / 2 - head.x, canvas.height / 2 - head.y, canvas.width, canvas.height, isConfused, time);
 
       // Draw pipes
       drawPipes(ctx, state.map.pipes, time);
+      
+      // Draw Confusion Orb
+      if (state.map.confusionOrb) {
+        drawConfusionOrb(ctx, state.map.confusionOrb, time);
+      }
 
       // Draw potions
       state.pellets.forEach(pellet => {
@@ -132,9 +140,18 @@ export function GameCanvas() {
       // Draw all players
       Object.values(state.players).forEach(player => {
         if (player.alive) {
-          drawSnake(ctx, player as any, time);
+          const isEnemyScrambled = isConfused && player.team !== localPlayer?.team;
+          drawSnake(ctx, player as any, time, isEnemyScrambled);
         }
       });
+      
+      // Draw Fog of War if confused (drawn over everything except UI)
+      if (isConfused) {
+        ctx.restore(); // pop camera translation
+        drawFogOfWar(ctx, canvas.width, canvas.height, time);
+        ctx.save();
+        ctx.translate(canvas.width / 2 - head.x, canvas.height / 2 - head.y); // restore camera translation for score popups if needed
+      }
 
       // Draw score popups
       drawScorePopups(ctx, state.scorePopups);

@@ -31,6 +31,11 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
   const now = Date.now();
   const allPlayers = Object.values(room.players);
 
+  // Clear expired debuffs
+  if (room.debuff && now > room.debuff.expiresAt) {
+    room.debuff = null;
+  }
+
   // 0. Respawn Logic
   if (room.settings.respawnDelaySeconds !== null) {
     for (const player of allPlayers) {
@@ -140,6 +145,28 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
         room.map.pellets.splice(i, 1);
         player.score += 10;
         player.segments.push({ ...player.segments[player.segments.length - 1] }); // grow 1 segment
+      }
+    }
+    
+    // Check Confusion Orb
+    if (room.map.confusionOrb && room.map.confusionOrb.active) {
+      if (distance(head, room.map.confusionOrb) < COLLISION_RADIUS + 25) { // Orb radius ~25
+        room.map.confusionOrb.active = false;
+        const debuffedTeams = Object.keys(room.teams).filter(id => id !== player.team);
+        room.debuff = {
+          teams: debuffedTeams,
+          expiresAt: Date.now() + 15000 // 15 seconds
+        };
+        
+        // Schedule reactivation after 45 seconds (15s debuff + 30s cooldown)
+        setTimeout(() => {
+          if (room.map.confusionOrb) {
+            room.map.confusionOrb.active = true;
+            room.map.confusionOrb.x = Math.random() * (room.map.width - 400) + 200;
+            room.map.confusionOrb.y = Math.random() * (room.map.height - 400) + 200;
+            io.to(room.code).emit('room:state', room.toClientRoom()); // Re-sync orb pos
+          }
+        }, 45000);
       }
     }
     
