@@ -9,3 +9,6 @@ export const selectRoom = (state: RootState) => state.room.current;
 
 /** Select the current room status */
 export const selectRoomStatus = (state: RootState) => state.room.current?.status ?? null;
+
+/** Select the local player state */
+export const selectLocalPlayer = (state: RootState) => state.localPlayer;

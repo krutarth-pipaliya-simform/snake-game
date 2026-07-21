@@ -28,3 +28,23 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* Phase 2 — Lobby settings input */
+.lobby-input {
+  width: 100%;
+  background-color: #000;
+  border: 1px solid #4b5563;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: #fff;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.lobby-input:focus {
+  border-color: var(--color-game-accent);
+}
+.lobby-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
