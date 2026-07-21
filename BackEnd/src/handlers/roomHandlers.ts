@@ -62,10 +62,7 @@ export function registerRoomHandlers(
       }
     }
 
-    if (room.status !== 'lobby') {
-      socket.emit('error', { message: 'Round already in progress.' });
-      return;
-    }
+    // Allow joining during in_round (Phase 10: Late Joins)
 
     const playerId = `player-${socket.id}`;
 
@@ -96,6 +93,19 @@ export function registerRoomHandlers(
         isReady: false,
         diedAt: null,
       };
+
+      if (room.status === 'in_round') {
+        // Auto-assign team
+        const teamIds = Object.keys(room.teams);
+        const assignedTeam = teamIds[Math.floor(Math.random() * teamIds.length)] || 'team-1';
+        room.players[playerId].team = assignedTeam;
+        if (room.teams[assignedTeam] && !room.teams[assignedTeam].playerIds.includes(playerId)) {
+          room.teams[assignedTeam].playerIds.push(playerId);
+        }
+        
+        // Mark them as dead so respawn logic picks them up (if respawns are enabled)
+        room.players[playerId].diedAt = Date.now();
+      }
     }
 
     socket.join(code);
