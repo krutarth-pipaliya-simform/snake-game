@@ -43,26 +43,12 @@ export class RoomSimulation {
       'team-1': { leaderId: '', playerIds: [] },
       'team-2': { leaderId: '', playerIds: [] },
     };
-    // Generate random number of pipe pairs (1 to 3 pairs)
-    const pipePairsCount = Math.floor(Math.random() * 3) + 1;
-    const generatedPipes = [];
-    let pipeIdCounter = 1;
-    for (let i = 0; i < pipePairsCount; i++) {
-      const p1Id = `pipe-${pipeIdCounter++}`;
-      const p2Id = `pipe-${pipeIdCounter++}`;
-      generatedPipes.push({
-        id: p1Id,
-        x: Math.random() * 3000 + 500,
-        y: Math.random() * 3000 + 500,
-        linkedPipeId: p2Id
-      });
-      generatedPipes.push({
-        id: p2Id,
-        x: Math.random() * 3000 + 500,
-        y: Math.random() * 3000 + 500,
-        linkedPipeId: p1Id
-      });
-    }
+    const generatedPipes = [
+      { id: 'pipe-1', x: 1500, y: 1500, linkedPipeId: 'pipe-2' },
+      { id: 'pipe-2', x: 2500, y: 2500, linkedPipeId: 'pipe-1' },
+      { id: 'pipe-3', x: 2500, y: 1500, linkedPipeId: 'pipe-4' },
+      { id: 'pipe-4', x: 1500, y: 2500, linkedPipeId: 'pipe-3' }
+    ];
 
     this.map = {
       width: 4000,
