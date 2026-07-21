@@ -94,6 +94,7 @@ export function registerRoomHandlers(
         inPipeTransit: null,
         lastInputAt: Date.now(),
         isReady: false,
+        diedAt: null,
       };
     }
 

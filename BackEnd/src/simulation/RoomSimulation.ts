@@ -88,6 +88,7 @@ export class RoomSimulation {
         inPipeTransit: null,
         lastInputAt: Date.now(),
         isReady: false,
+        diedAt: null,
       },
     };
     this.roundStartedAt = null;

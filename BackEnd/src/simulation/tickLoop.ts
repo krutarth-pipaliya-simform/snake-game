@@ -28,7 +28,29 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
   const dt = 0.05; // 50ms per tick (20Hz)
   const moveDist = SPEED * dt;
 
+  const now = Date.now();
   const allPlayers = Object.values(room.players);
+
+  // 0. Respawn Logic
+  if (room.settings.respawnDelaySeconds !== null) {
+    for (const player of allPlayers) {
+      if (!player.alive && player.diedAt !== null) {
+        if (now - player.diedAt >= room.settings.respawnDelaySeconds * 1000) {
+          player.alive = true;
+          player.diedAt = null;
+          player.score = Math.floor(player.score * 0.5); // 50% score penalty on death
+          const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+          const spawnX = Math.random() * (room.map.width - 400) + 200;
+          const spawnY = Math.random() * (room.map.height - 400) + 200;
+          player.direction = dirs[Math.floor(Math.random() * dirs.length)];
+          player.segments = [];
+          for (let i = 0; i < 5; i++) {
+            player.segments.push({ x: spawnX - (player.direction.x * i * 15), y: spawnY - (player.direction.y * i * 15) });
+          }
+        }
+      }
+    }
+  }
 
   // 1. Move players
   for (const player of allPlayers) {
@@ -172,6 +194,8 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
   // Handle death (drop pellets)
   for (const player of allPlayers) {
     if (!player.alive && player.segments.length > 0) {
+      player.diedAt = Date.now();
+      
       // Turn segments into pellets
       for (const seg of player.segments) {
         room.map.pellets.push({
@@ -220,6 +244,7 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
           const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
           for (const p of Object.values(room.players)) {
             p.alive = true;
+            p.diedAt = null;
             p.score = 0;
             p.kills = 0;
             const spawnX = Math.random() * (room.map.width - 400) + 200;

@@ -41,6 +41,7 @@ export function registerRoundHandlers(
       }
       
       player.alive = true;
+      player.diedAt = null;
       player.score = 0;
       player.kills = 0;
       
@@ -100,6 +101,7 @@ export function registerRoundHandlers(
           const spawnDirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
           for (const p of Object.values(room.players)) {
             p.alive = true;
+            p.diedAt = null;
             p.score = 0;
             p.kills = 0;
             const spawnX = Math.random() * (room.map.width - 400) + 200;
