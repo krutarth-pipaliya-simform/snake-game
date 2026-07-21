@@ -5,7 +5,7 @@ import type { GameState } from '../game/engine';
 import { drawPotion } from '../game/drawPotion';
 import { POTION_CONFIGS } from '../game/potionConfig';
 import { drawSnake } from '../game/drawSnake';
-import { drawBackground } from '../game/drawBackground';
+import { drawBackground, drawPipes } from '../game/drawBackground';
 import { drawHUD, drawScorePopups, drawGameOver } from '../game/drawHUD';
 import { socket } from '../realtime/socketClient';
 import { store } from '../store/store';
@@ -119,6 +119,9 @@ export function GameCanvas() {
 
       // Draw grid and border
       drawBackground(ctx, canvas.width / 2 - head.x, canvas.height / 2 - head.y, canvas.width, canvas.height);
+
+      // Draw pipes
+      drawPipes(ctx, state.map.pipes, time);
 
       // Draw potions
       state.pellets.forEach(pellet => {

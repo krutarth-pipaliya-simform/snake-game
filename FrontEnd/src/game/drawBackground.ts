@@ -33,3 +33,36 @@ export function drawBackground(
   ctx.strokeRect(0, 0, MAP_SIZE, MAP_SIZE);
   ctx.shadowBlur = 0;
 }
+
+export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x: number; y: number }[], time: number) {
+  for (const pipe of pipes) {
+    ctx.save();
+    ctx.translate(pipe.x, pipe.y);
+    
+    // Portal swirling effect
+    ctx.rotate(time / 500);
+    
+    // Outer glow
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#8B5CF6'; // purple glow
+    
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#8B5CF6';
+    ctx.stroke();
+
+    // Inner pulsing ring
+    const pulse = (Math.sin(time / 200) + 1) / 2; // 0 to 1
+    ctx.beginPath();
+    ctx.arc(0, 0, 20 + 5 * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(139, 92, 246, ${0.3 + 0.3 * pulse})`;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#A78BFA';
+    ctx.stroke();
+
+    ctx.restore();
+  }
+}

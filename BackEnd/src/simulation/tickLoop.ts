@@ -37,6 +37,34 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     const head = { ...player.segments[0] };
     if (!head) continue; // safety check
 
+    // Handle Pipe Transit
+    if (player.inPipeTransit) {
+      player.inPipeTransit.progress += 0.1; // 50ms per tick, 500ms total
+
+      const entryPipe = room.map.pipes.find(p => p.id === player.inPipeTransit!.pipeId);
+      const exitPipe = room.map.pipes.find(p => p.id === entryPipe?.linkedPipeId);
+
+      if (entryPipe && exitPipe) {
+        if (player.inPipeTransit.progress >= 1.0) {
+          // Transit complete
+          head.x = exitPipe.x;
+          head.y = exitPipe.y;
+          player.inPipeTransit = null;
+        } else {
+          // Interpolate
+          head.x = entryPipe.x + (exitPipe.x - entryPipe.x) * player.inPipeTransit.progress;
+          head.y = entryPipe.y + (exitPipe.y - entryPipe.y) * player.inPipeTransit.progress;
+        }
+      } else {
+        // Fallback if pipes missing
+        player.inPipeTransit = null;
+      }
+      
+      player.segments.unshift(head);
+      player.segments.pop();
+      continue; // Skip normal movement
+    }
+
     const isActuallyBoosting = player.boosting && player.segments.length > 3;
     const speedMultiplier = isActuallyBoosting ? 1.5 : 1.0;
     const currentMoveDist = moveDist * speedMultiplier;
@@ -63,7 +91,17 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     }
     
     // Always pop one to maintain length unless eating
-    player.segments.pop(); 
+    player.segments.pop();
+
+    // Check if entered a pipe this tick
+    if (player.alive && !player.inPipeTransit) {
+      for (const pipe of room.map.pipes) {
+        if (distance(head, pipe) < COLLISION_RADIUS * 2) {
+          player.inPipeTransit = { pipeId: pipe.id, progress: 0.0 };
+          break; // Only enter one pipe
+        }
+      }
+    }
   }
 
   // 2. Collision & Pellets
