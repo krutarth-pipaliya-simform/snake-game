@@ -1,0 +1,19 @@
+#!/bin/sh
+
+commit_msg=$(cat "$1")
+
+# Regex for: type(scope): description
+pattern='^(feat|fix|refactor|style|docs|chore|test)\((fe|be|shared|repo)\/[a-z0-9-]+\): .{1,72}$'
+
+if ! echo "$commit_msg" | head -1 | grep -qE "$pattern"; then
+  echo ""
+  echo "❌ Commit message doesn't match format:"
+  echo "   <type>(<area>/<scope>): <description>"
+  echo ""
+  echo "   Examples:"
+  echo "   feat(fe/phase1-snake-core): add keyboard input"
+  echo "   feat(be/phase2-lobby): implement room creation"
+  echo "   chore(repo/husky): set up pre-commit hooks"
+  echo ""
+  exit 1
+fi
