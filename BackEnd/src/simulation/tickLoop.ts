@@ -291,13 +291,13 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
         }
       }
 
-      // Turn segments into pellets
+      // Turn segments into pellets (weighted random tier, not all small)
       for (const seg of player.segments) {
         room.map.pellets.push({
           id: String(nextPelletId++),
           x: seg.x,
           y: seg.y,
-          tier: 'small',
+          tier: pickPelletTier().tier,
         });
       }
       player.segments = []; // Clear segments so we don't drop again
@@ -305,7 +305,7 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
   }
 
   // Refill pellets if too low
-  while (room.map.pellets.length < 50) {
+  while (room.map.pellets.length < 400) {
     room.map.pellets.push(spawnPellet(room));
   }
 
