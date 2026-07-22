@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import type { ClientEvents, ServerEvents } from '@shared/types/events';
 import { getRoomBySocketId } from '../simulation/roomManager';
 import { simulateTick } from '../simulation/tickLoop';
+import { generateRandomPipes } from '../simulation/RoomSimulation';
 
 export function registerRoundHandlers(
   io: Server<ClientEvents, ServerEvents>,
@@ -26,6 +27,10 @@ export function registerRoundHandlers(
 
     if (room.status === 'round_ended') {
       room.currentRound++;
+    }
+
+    if (room.status === 'lobby') {
+      room.map.pipes = generateRandomPipes(room.map.width, room.map.height);
     }
 
     room.status = 'in_round';

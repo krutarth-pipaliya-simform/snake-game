@@ -43,7 +43,14 @@ export function applyServerState(state: GameState, serverState: any, dt: number)
     state.pellets = serverState.map.pellets || [];
   }
   
-  state.debuff = serverState.debuff;
+  if (serverState.debuff !== undefined) {
+    if (serverState.debuff && !state.debuff) {
+      console.log('[Frontend Event Reception] Received new Confusion effect from server:', serverState.debuff);
+    } else if (!serverState.debuff && state.debuff) {
+      console.log('[Frontend Event Reception] Confusion effect cleared by server.');
+    }
+    state.debuff = serverState.debuff;
+  }
 
   // Update score popups age (fade out after ~800ms) - purely client-side visual
   for (let i = state.scorePopups.length - 1; i >= 0; i--) {

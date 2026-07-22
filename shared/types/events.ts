@@ -16,6 +16,7 @@ export interface ClientEvents {
   'player:ready': (payload: { isReady: boolean }) => void;
   'round:start': (payload: {}) => void;
   'round:voteEnd': (payload: {}) => void;
+  'round:returnLobby': (payload: {}) => void;
   'input:direction': (payload: { x: number; y: number }) => void;
   'input:boost': (payload: { boosting: boolean }) => void;
 }
