@@ -26,59 +26,68 @@ export function MainMenu() {
     setTimeout(() => setLoading(false), 5000);
   };
 
-  const handleJoinRoom = () => {
-    if (!joinCode) return;
+  const handleJoinRoom = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!joinCode || joinCode.length !== 4) return;
     setLoading(true);
     joinRoom(joinCode, localPlayer.name);
     setTimeout(() => setLoading(false), 5000);
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 p-8 bg-gray-900 rounded-xl border border-gray-700 w-full max-w-md mx-auto mt-20">
-      <h2 className="text-3xl font-bold text-white mb-4">Join or Create Room</h2>
+    <div className="flex flex-col items-center gap-8 p-10 card-base w-full max-w-md mx-auto mt-20 relative overflow-hidden">
+      {/* Decorative top glow */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-70"></div>
+      
+      <div className="text-center w-full">
+        <h1 className="text-4xl font-black font-display text-transparent bg-clip-text bg-gradient-to-r from-game-accent to-purple-400 mb-2 drop-shadow-sm uppercase tracking-wider">Team Snake</h1>
+        <h2 className="text-sm font-bold text-gray-400 tracking-widest uppercase">Battle Arena</h2>
+      </div>
       
       <div className="w-full space-y-2">
-        <label className="text-sm text-gray-400 font-medium">Your Name</label>
+        <label className="text-xs tracking-wider text-gray-400 font-bold uppercase">Your Identity</label>
         <input 
           type="text" 
           value={localPlayer.name}
           onChange={(e) => dispatch(setName(e.target.value))}
-          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white outline-none focus:border-game-accent"
+          className="lobby-input"
           placeholder="Enter your name"
           disabled={loading}
         />
       </div>
 
-      <div className="w-full h-px bg-gray-700 my-2"></div>
-
       <button 
         onClick={handleCreateRoom}
         disabled={loading}
-        className="w-full bg-game-accent hover:bg-game-accent-glow disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-white font-bold py-3 px-4 rounded-lg transition-colors"
+        className="w-full py-4 btn-primary"
       >
-        {loading ? 'Creating...' : 'Create New Room'}
+        {loading ? 'INITIALIZING...' : 'CREATE NEW ARENA'}
       </button>
 
-      <div className="w-full h-px bg-gray-700 my-2"></div>
+      <div className="w-full flex items-center gap-4 my-2 opacity-50">
+        <div className="h-px bg-gray-600 flex-1"></div>
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Or</span>
+        <div className="h-px bg-gray-600 flex-1"></div>
+      </div>
 
-      <div className="w-full space-y-3 flex flex-col">
+      <form onSubmit={handleJoinRoom} className="w-full space-y-3 flex flex-col">
         <input 
           type="text" 
           value={joinCode}
           onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
-          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white outline-none focus:border-game-accent text-center text-xl tracking-widest font-mono uppercase"
-          placeholder="ROOM CODE"
+          className="lobby-input text-center text-2xl tracking-[0.3em] font-display uppercase font-bold"
+          placeholder="CODE"
           maxLength={4}
           disabled={loading}
         />
         <button 
-          onClick={handleJoinRoom}
+          type="submit"
           disabled={joinCode.length !== 4 || loading}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed cursor-pointer text-white font-bold py-3 px-4 rounded-lg transition-colors"
+          className="w-full py-3 btn-primary"
         >
-          {loading ? 'Joining...' : 'Join Room'}
+          {loading ? 'LINKING...' : 'JOIN ARENA'}
         </button>
-      </div>
+      </form>
     </div>
   );
 }

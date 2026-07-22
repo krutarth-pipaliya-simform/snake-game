@@ -4,22 +4,42 @@
 
 @theme {
   /* Game color palette */
-  --color-game-bg: #0a0e17;
-  --color-game-surface: #111827;
-  --color-game-border: #1f2937;
-  --color-game-accent: #3b82f6;
-  --color-game-accent-glow: #60a5fa;
-  --color-game-success: #22c55e;
-  --color-game-danger: #ef4444;
-  --color-game-warning: #f59e0b;
+  --color-bg-base: #0B0E14;
+  --color-bg-panel: #131824;
+  --color-bg-panel-raised: #1A2130;
+  
+  --color-border-default: #2A3345;
+  --color-border-strong: #3D4A63;
+
+  --color-text-primary: #F2F4F8;
+  --color-text-secondary: #9AA5B8;
+  --color-text-muted: #5C6678;
+
+  --color-accent-system: #3B82F6;
+  
+  --color-team-1: #3B82F6;
+  --color-team-2: #F2545B;
+  --color-team-3: #22D3A5;
+  --color-team-4: #F2A93B;
+
+  --color-danger-alert: #F2545B;
+  --color-success: #22D3A5;
+
+  --font-display: 'Orbitron', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
 }
 
 html {
-  background-color: var(--color-game-bg);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
 }
 
 body {
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   min-height: 100vh;
 }
 
@@ -29,20 +49,128 @@ body {
   flex-direction: column;
 }
 
+/* Base interactive focus */
+:focus-visible {
+  outline: 2px solid var(--color-accent-system);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   Component Patterns
+   ============================================================ */
+
+/* Cards */
+.card-base {
+  background-color: var(--color-bg-panel);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-default);
+}
+
+.card-team-1 {
+  border-color: var(--color-team-1);
+  box-shadow: 0 0 16px 0 rgba(59, 130, 246, 0.33); /* #3B82F655 */
+}
+.card-team-2 {
+  border-color: var(--color-team-2);
+  box-shadow: 0 0 16px 0 rgba(242, 84, 91, 0.33); /* #F2545B55 */
+}
+.card-team-3 {
+  border-color: var(--color-team-3);
+  box-shadow: 0 0 16px 0 rgba(34, 211, 165, 0.33); /* #22D3A555 */
+}
+.card-team-4 {
+  border-color: var(--color-team-4);
+  box-shadow: 0 0 16px 0 rgba(242, 169, 59, 0.33); /* #F2A93B55 */
+}
+
+/* Empty slot placeholder */
+.empty-slot {
+  border: 1px dashed var(--color-border-default);
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+}
+
+/* Buttons */
+.btn-primary {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: var(--color-bg-panel-raised);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 0 16px 0 rgba(59, 130, 246, 0.33);
+  border-color: var(--color-accent-system);
+}
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: none;
+}
+
+.btn-secondary {
+  font-family: var(--font-body);
+  background-color: var(--color-bg-panel-raised);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+.btn-secondary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 0 16px 0 rgba(59, 130, 246, 0.33);
+  border-color: var(--color-accent-system);
+}
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Glass panel for UI elements (deprecated/fallback) */
+.glass-panel {
+  background-color: rgba(11, 14, 20, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-panel-accent {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.2);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
 /* Phase 2 — Lobby settings input */
 .lobby-input {
   width: 100%;
-  background-color: #000;
-  border: 1px solid #4b5563;
-  border-radius: 0.375rem;
+  background-color: var(--color-bg-panel-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   padding: 0.5rem 0.75rem;
-  color: #fff;
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.15s;
 }
-.lobby-input:focus {
-  border-color: var(--color-game-accent);
+.lobby-input:focus-visible {
+  border-color: var(--color-border-strong);
+  outline: 2px solid var(--color-accent-system);
+  outline-offset: 2px;
 }
 .lobby-input:disabled {
   opacity: 0.5;

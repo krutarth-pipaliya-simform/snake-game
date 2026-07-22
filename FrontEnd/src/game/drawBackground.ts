@@ -11,8 +11,8 @@ export function drawBackground(
   const MAP_SIZE = 4000;
   const GRID = 100;
 
-  // Line grid — matches original canvas aesthetic
-  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.25)' : '#2a2a3e';
+  // Line grid — brighter per request
+  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.35)' : 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = 1;
   const startX = Math.floor(-cameraOffsetX / GRID) * GRID;
   const startY = Math.floor(-cameraOffsetY / GRID) * GRID;
@@ -39,6 +39,16 @@ export function drawBackground(
     }
     ctx.stroke();
   }
+
+  // Radial Vignette
+  const sx = -cameraOffsetX;
+  const sy = -cameraOffsetY;
+  const radius = Math.max(canvasW, canvasH) * 0.7;
+  const vignetteGrad = ctx.createRadialGradient(sx + canvasW/2, sy + canvasH/2, radius * 0.3, sx + canvasW/2, sy + canvasH/2, radius);
+  vignetteGrad.addColorStop(0, 'rgba(11, 14, 20, 0)');
+  vignetteGrad.addColorStop(1, 'rgba(11, 14, 20, 0.8)'); // --bg-base
+  ctx.fillStyle = vignetteGrad;
+  ctx.fillRect(sx, sy, canvasW, canvasH);
 
   // Glowing map border (gradient stroke)
   const grd = ctx.createLinearGradient(0, 0, MAP_SIZE, MAP_SIZE);
@@ -113,9 +123,9 @@ export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x:
     ctx.setLineDash([12, 60]);
     ctx.lineDashOffset = -dashSpeed;
     ctx.lineWidth = 2;
-    ctx.strokeStyle = `rgba(139, 92, 246, ${pulseOpacity})`; // Very subdued violet
+    ctx.strokeStyle = `rgba(255, 255, 255, ${pulseOpacity})`; // white
     ctx.shadowBlur = 2; // Barely any glow
-    ctx.shadowColor = '#8B5CF6';
+    ctx.shadowColor = '#FFFFFF';
     ctx.stroke();
     ctx.restore();
 
@@ -125,9 +135,9 @@ export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x:
     ctx.setLineDash([12, 60]);
     ctx.lineDashOffset = dashSpeed;
     ctx.lineWidth = 2;
-    ctx.strokeStyle = `rgba(139, 92, 246, ${pulseOpacity})`;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${pulseOpacity})`;
     ctx.shadowBlur = 2;
-    ctx.shadowColor = '#8B5CF6';
+    ctx.shadowColor = '#FFFFFF';
     ctx.stroke();
     ctx.restore();
 
@@ -141,7 +151,7 @@ export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x:
 
     // Outer glow (reduced)
     ctx.shadowBlur = 8;
-    ctx.shadowColor = 'rgba(109, 40, 217, 0.5)';
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)'; // white
 
     // Vortex rings (subtler)
     for (let i = 0; i < 3; i++) {
@@ -150,7 +160,7 @@ export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x:
       ctx.beginPath();
       ctx.arc(0, 0, 35 - i * 8, 0, Math.PI * 1.5);
       ctx.lineWidth = 1 + i;
-      ctx.strokeStyle = i === 0 ? 'rgba(139, 92, 246, 0.35)' : (i === 1 ? 'rgba(167, 139, 250, 0.2)' : 'rgba(196, 181, 253, 0.1)');
+      ctx.strokeStyle = i === 0 ? 'rgba(255, 255, 255, 0.35)' : (i === 1 ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)');
       ctx.stroke();
       ctx.restore();
     }
@@ -165,7 +175,7 @@ export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x:
     const pulse = (Math.sin(time / 150) + 1) / 2;
     ctx.beginPath();
     ctx.arc(0, 0, 10 + 5 * pulse, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(139, 92, 246, ${0.1 + 0.15 * pulse})`;
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + 0.15 * pulse})`;
     ctx.fill();
 
     ctx.restore();

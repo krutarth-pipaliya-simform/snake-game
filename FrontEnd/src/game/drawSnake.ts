@@ -16,23 +16,21 @@ export function drawSnake(
   const total = segs.length;
   if (total === 0) return;
 
-  let displayColor = player.color;
-  let strokeColor = '#1e3a8a';
+  let displayColor: string;
+  let strokeColor: string;
 
-  if (isScrambled) {
-    displayColor = `hsl(${(time / 5) % 360}, 100%, 50%)`;
-    strokeColor = '#ff0000';
+  if (isSelf) {
+    displayColor = '#3b82f6'; // My snake always blue
+    strokeColor = '#1e3a8a';
+  } else if (isScrambled) {
+    displayColor = '#ef4444'; // All others red in confusion
+    strokeColor = '#7f1d1d';
+  } else if (isTeammate) {
+    displayColor = '#22c55e'; // Team green
+    strokeColor = '#14532d';
   } else {
-    if (isSelf) {
-      displayColor = '#3b82f6'; // Bright blue
-      strokeColor = '#1e3a8a';  // Darker blue
-    } else if (isTeammate) {
-      displayColor = '#22c55e'; // Bright green
-      strokeColor = '#14532d';  // Darker green
-    } else {
-      displayColor = '#ef4444'; // Bright red
-      strokeColor = '#7f1d1d';  // Darker red
-    }
+    displayColor = '#ef4444'; // Opponents red
+    strokeColor = '#7f1d1d';
   }
 
   // === PHASE 9: Ghost outline rendering for scrambled enemies ===
@@ -58,8 +56,12 @@ export function drawSnake(
 
   // Add glow to the entire snake
   ctx.save();
-  ctx.shadowBlur = isScrambled ? 12 : 6;
+  ctx.shadowBlur = isScrambled ? 12 : 16;
   ctx.shadowColor = displayColor;
+
+  if (isSelf && !isScrambled) {
+    ctx.filter = 'brightness(1.25) saturate(1.2)';
+  }
 
   ctx.fillStyle = displayColor;
   ctx.strokeStyle = strokeColor;
@@ -92,15 +94,29 @@ export function drawSnake(
   // Name label — hidden during scramble per spec
   if (!isScrambled && player.name) {
     ctx.save();
-    // Team-colored name badge
-    const badgeColor = isSelf ? '#3b82f6' : (isTeammate ? '#22c55e' : '#ef4444');
-    ctx.fillStyle = badgeColor;
-    ctx.font = 'bold 11px Inter, sans-serif';
+    const badgeColor = displayColor;
+    
+    ctx.font = '11px Inter, sans-serif';
+    const textW = ctx.measureText(player.name).width;
+    const textH = 16;
+    const px = segs[0].x;
+    const py = segs[0].y - HEAD_R - 14;
+
+    // Background pill for readability
+    ctx.fillStyle = 'rgba(19, 24, 36, 0.7)'; // --bg-panel (131824) at 70%
+    ctx.beginPath();
+    ctx.roundRect(px - textW/2 - 8, py - textH/2 - 4, textW + 16, textH + 4, 8);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = badgeColor;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#F2F4F8'; // --text-primary
     ctx.textAlign = 'center';
-    ctx.shadowColor = '#000';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 1;
-    ctx.fillText(player.name, segs[0].x, segs[0].y - HEAD_R - 8);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(player.name, px, py);
     ctx.restore();
   }
 }

@@ -10,11 +10,13 @@
   },
   "lint-staged": {
     "FrontEnd/**/*.{ts,tsx}": [
-      "oxlint --fix"
+      "npm --prefix FrontEnd run build",
+      "npx --no-install oxlint --fix"
     ],
     "BackEnd/**/*.ts": [
-      "eslint --fix",
-      "prettier --write"
+      "npm --prefix BackEnd run build",
+      "npx --no-install eslint --fix",
+      "npx --no-install prettier --write"
     ]
   }
 }

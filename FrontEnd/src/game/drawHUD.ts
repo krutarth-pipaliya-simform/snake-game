@@ -24,45 +24,67 @@ export function drawHUD(
   pipes: { id: string; x: number; y: number; linkedPipeId?: string }[] = [],
   confusionOrb?: { x: number; y: number; active: boolean; spawnsAt?: number | null } | null
 ) {
+  // Local player team color for HUD accents
+  let teamColor = '#3b82f6'; // Default blue
+  if (localPlayer?.team === 'team-1') teamColor = '#3b82f6';
+  else if (localPlayer?.team === 'team-2') teamColor = '#ef4444';
+  else if (localPlayer?.team === 'team-3') teamColor = '#22c55e';
+  else if (localPlayer?.team === 'team-4') teamColor = '#f59e0b';
+  // If team color maps are passed or we want dynamic, we can just use localPlayer.color, but usually we map teams to specific colors.
+  // Actually, we can just use localPlayer.color!
+  teamColor = localPlayer?.color || '#3b82f6';
+
   // Glassmorphism pill: top-left
   const panel = { x: 16, y: 16, w: 220, h: 80, r: 14 };
 
   ctx.save();
-  ctx.globalAlpha = 0.8;
-  ctx.fillStyle = '#0a0e17';
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#131824'; // --bg-panel
   roundRect(ctx, panel.x, panel.y, panel.w, panel.h, panel.r);
   ctx.fill();
-  ctx.globalAlpha = 1;
 
-  // Border glow — purple when confused
-  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.7)' : 'rgba(59, 130, 246, 0.4)';
-  ctx.lineWidth = isConfused ? 2 : 1.5;
+  // Border glow — purple when confused, team color otherwise
+  const borderAlpha = isConfused ? 0.7 : 1;
+  ctx.strokeStyle = isConfused ? `rgba(139, 92, 246, ${borderAlpha})` : teamColor;
+  ctx.lineWidth = isConfused ? 2 : 2;
   roundRect(ctx, panel.x, panel.y, panel.w, panel.h, panel.r);
   ctx.stroke();
 
   // Score
-  ctx.fillStyle = '#94a3b8';
+  ctx.fillStyle = '#5C6678'; // --text-muted
   ctx.font = '11px Inter, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText('SCORE', panel.x + 18, panel.y + 26);
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = 'bold 26px Inter, sans-serif';
-  ctx.fillText(score.toLocaleString(), panel.x + 18, panel.y + 52);
+  ctx.fillStyle = '#F2F4F8'; // --text-primary
+  ctx.font = 'bold 26px Orbitron, sans-serif';
+  ctx.fillText(score.toLocaleString(), panel.x + 18, panel.y + 54);
 
   // Length badge
-  ctx.fillStyle = '#94a3b8';
+  ctx.fillStyle = '#5C6678';
   ctx.font = '11px Inter, sans-serif';
   ctx.textAlign = 'right';
   ctx.fillText('LENGTH', panel.x + panel.w - 18, panel.y + 26);
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = 'bold 26px Inter, sans-serif';
-  ctx.fillText(String(length), panel.x + panel.w - 18, panel.y + 52);
+  ctx.fillStyle = '#F2F4F8';
+  ctx.font = 'bold 26px Orbitron, sans-serif';
+  ctx.fillText(String(length), panel.x + panel.w - 18, panel.y + 54);
 
-  // Controls hint
-  ctx.fillStyle = 'rgba(148,163,184,0.5)';
-  ctx.font = '11px Inter, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText('WASD / ↑↓←→ move  |  SPACE boost', canvasW - 14, panel.y + 24);
+  // Controls hint (top right) - inside a pill
+  const hintText = 'WASD / ↑↓←→ move  |  SPACE boost';
+  ctx.font = '11px Orbitron, sans-serif';
+  const hintW = ctx.measureText(hintText).width + 24;
+  const hintH = 28;
+  const hintX = canvasW - hintW - 16;
+  const hintY = 16;
+  
+  ctx.fillStyle = 'rgba(11, 14, 20, 0.5)';
+  roundRect(ctx, hintX, hintY, hintW, hintH, 14);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
+  ctx.textAlign = 'center';
+  ctx.fillText(hintText, hintX + hintW / 2, hintY + 18);
 
   ctx.restore();
 
@@ -109,7 +131,7 @@ function drawConfusionBanner(
 
   // Text
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 14px Inter, sans-serif';
+  ctx.font = 'bold 14px Orbitron, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(`⚠ CONFUSION ACTIVE — ${secondsLeft}s`, canvasW / 2, by + 23);
 
@@ -126,38 +148,38 @@ export function drawRespawnCountdown(
   const pulse = (Math.sin(t * 4) + 1) / 2;
 
   // Dimmed overlay
-  ctx.fillStyle = 'rgba(10, 14, 23, 0.75)';
+  ctx.fillStyle = 'rgba(11, 14, 20, 0.75)'; // --bg-base
   ctx.fillRect(0, 0, canvasW, canvasH);
 
   // Card
   const cw = 340, ch = 200, cx = (canvasW - cw) / 2, cy = (canvasH - ch) / 2;
-  ctx.fillStyle = '#111827';
-  roundRect(ctx, cx, cy, cw, ch, 20);
+  ctx.fillStyle = '#131824'; // --bg-panel
+  roundRect(ctx, cx, cy, cw, ch, 16); // --radius-lg
   ctx.fill();
 
   ctx.shadowBlur = 20 + pulse * 20;
-  ctx.shadowColor = '#8B5CF6';
-  ctx.strokeStyle = `rgba(139, 92, 246, ${0.6 + pulse * 0.4})`;
+  ctx.shadowColor = '#3B82F6'; // Default glow, could be team color but we don't pass it yet
+  ctx.strokeStyle = `rgba(59, 130, 246, ${0.6 + pulse * 0.4})`; // Accent system
   ctx.lineWidth = 2;
-  roundRect(ctx, cx, cy, cw, ch, 20);
+  roundRect(ctx, cx, cy, cw, ch, 16);
   ctx.stroke();
   ctx.shadowBlur = 0;
 
   // "YOU DIED" text
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ef4444';
-  ctx.font = 'bold 28px Inter, sans-serif';
+  ctx.font = 'bold 28px Orbitron, sans-serif';
   ctx.fillText('YOU DIED', canvasW / 2, cy + 54);
 
   // Big countdown number
   ctx.fillStyle = `hsl(${260 + pulse * 30}, 80%, ${60 + pulse * 15}%)`;
-  ctx.font = `bold ${52 + pulse * 6}px Inter, sans-serif`;
+  ctx.font = `bold ${52 + pulse * 6}px Orbitron, sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText(String(Math.ceil(secondsLeft)), canvasW / 2, cy + 126);
 
   // Label
   ctx.fillStyle = '#94a3b8';
-  ctx.font = '14px Inter, sans-serif';
+  ctx.font = '14px Orbitron, sans-serif';
   ctx.fillText('Respawning...', canvasW / 2, cy + 160);
 }
 
@@ -167,30 +189,30 @@ export function drawWaitingForRound(
   canvasW: number,
   canvasH: number
 ) {
-  ctx.fillStyle = 'rgba(10, 14, 23, 0.82)';
+  ctx.fillStyle = 'rgba(11, 14, 20, 0.82)'; // --bg-base
   ctx.fillRect(0, 0, canvasW, canvasH);
 
   const cw = 340, ch = 190, cx = (canvasW - cw) / 2, cy = (canvasH - ch) / 2;
-  ctx.fillStyle = '#111827';
-  roundRect(ctx, cx, cy, cw, ch, 20);
+  ctx.fillStyle = '#131824'; // --bg-panel
+  roundRect(ctx, cx, cy, cw, ch, 16);
   ctx.fill();
 
-  ctx.strokeStyle = '#6b7280';
+  ctx.strokeStyle = '#3D4A63'; // --border-strong
   ctx.lineWidth = 2;
-  roundRect(ctx, cx, cy, cw, ch, 20);
+  roundRect(ctx, cx, cy, cw, ch, 16);
   ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#94a3b8';
-  ctx.font = 'bold 28px Inter, sans-serif';
+  ctx.font = 'bold 28px Orbitron, sans-serif';
   ctx.fillText('YOU DIED', canvasW / 2, cy + 58);
 
   ctx.fillStyle = '#64748b';
-  ctx.font = '16px Inter, sans-serif';
+  ctx.font = '16px Orbitron, sans-serif';
   ctx.fillText(`Score: ${score.toLocaleString()}`, canvasW / 2, cy + 96);
 
   ctx.fillStyle = '#475569';
-  ctx.font = '14px Inter, sans-serif';
+  ctx.font = '14px Orbitron, sans-serif';
   ctx.fillText('Waiting for round to end...', canvasW / 2, cy + 142);
 }
 
@@ -244,32 +266,43 @@ function drawMinimap(
   pipes: { id: string; x: number; y: number; linkedPipeId?: string }[] = [],
   confusionOrb?: { x: number; y: number; active: boolean; spawnsAt?: number | null } | null
 ) {
-  const mapSize = 140;
+  const mapSize = 120;
+  const mapRadius = mapSize / 2;
   const padding = 16;
-  const x = padding;
-  const y = canvasH - padding - mapSize;
+  const x = padding + mapRadius;
+  const y = canvasH - padding - mapRadius;
 
   ctx.save();
   ctx.globalAlpha = 0.85;
-  ctx.fillStyle = '#0a0e17';
-  roundRect(ctx, x, y, mapSize, mapSize, 8);
+  ctx.fillStyle = '#131824'; // --bg-panel
+  
+  // Minimap base (circular)
+  ctx.beginPath();
+  ctx.arc(x, y, mapRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // Border — purple when confused
-  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.6)' : 'rgba(255, 255, 255, 0.15)';
-  ctx.lineWidth = 1.5;
+  // Border
+  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.6)' : 'rgba(42, 51, 69, 1)'; // --border-default
+  ctx.lineWidth = 1;
   ctx.globalAlpha = 1;
   ctx.stroke();
 
+  // Clip to circle so contents don't bleed out
+  ctx.beginPath();
+  ctx.arc(x, y, mapRadius, 0, Math.PI * 2);
+  ctx.clip();
+
   // Label
-  ctx.fillStyle = isConfused ? 'rgba(139, 92, 246, 0.7)' : 'rgba(148, 163, 184, 0.5)';
+  ctx.fillStyle = isConfused ? 'rgba(139, 92, 246, 0.7)' : 'rgba(92, 102, 120, 0.8)';
   ctx.font = '9px Inter, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText(isConfused ? '⚠ SCRAMBLED' : 'MINIMAP', x + 6, y + 12);
+  ctx.textAlign = 'center';
+  ctx.fillText(isConfused ? 'SCRAMBLED' : 'MINIMAP', x, y - mapRadius + 14);
 
   // Draw dots for players
   const scaleX = mapSize / mapW;
   const scaleY = mapSize / mapH;
+  const drawX = (px: number) => x - mapRadius + px * scaleX;
+  const drawY = (py: number) => y - mapRadius + py * scaleY;
 
   // Draw pipe connections on minimap
   if (!isConfused && pipes.length > 0) {
@@ -284,10 +317,10 @@ function drawMinimap(
       if (drawnLinks.has(linkKey)) continue;
       drawnLinks.add(linkKey);
 
-      const x1 = pipe.x * scaleX;
-      const y1 = pipe.y * scaleY;
-      const x2 = linked.x * scaleX;
-      const y2 = linked.y * scaleY;
+      const x1 = drawX(pipe.x);
+      const y1 = drawY(pipe.y);
+      const x2 = drawX(linked.x);
+      const y2 = drawY(linked.y);
       
       const isVerticalFirst = (pipe.id > linked.id); 
       const dx = Math.abs(x2 - x1);
@@ -295,17 +328,17 @@ function drawMinimap(
       const radius = Math.min(4, dx / 2, dy / 2);
 
       ctx.beginPath();
-      ctx.moveTo(x + x1, y + y1);
+      ctx.moveTo(x1, y1);
       if (isVerticalFirst) {
         const yMid = (y1 + y2) / 2;
-        ctx.arcTo(x + x1, y + yMid, x + x2, y + yMid, radius);
-        ctx.arcTo(x + x2, y + yMid, x + x2, y + y2, radius);
+        ctx.arcTo(x1, yMid, x2, yMid, radius);
+        ctx.arcTo(x2, yMid, x2, y2, radius);
       } else {
         const xMid = (x1 + x2) / 2;
-        ctx.arcTo(x + xMid, y + y1, x + xMid, y + y2, radius);
-        ctx.arcTo(x + xMid, y + y2, x + x2, y + y2, radius);
+        ctx.arcTo(xMid, y1, xMid, y2, radius);
+        ctx.arcTo(xMid, y2, x2, y2, radius);
       }
-      ctx.lineTo(x + x2, y + y2);
+      ctx.lineTo(x2, y2);
       
       ctx.lineWidth = 1;
       ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)';
@@ -316,7 +349,7 @@ function drawMinimap(
     for (const pipe of pipes) {
       ctx.fillStyle = 'rgba(139, 92, 246, 0.7)';
       ctx.beginPath();
-      ctx.arc(x + pipe.x * scaleX, y + pipe.y * scaleY, 1.5, 0, Math.PI * 2);
+      ctx.arc(drawX(pipe.x), drawY(pipe.y), 1.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -325,37 +358,38 @@ function drawMinimap(
     if (!p.alive || p.segments.length === 0) return;
     const head = p.segments[0];
 
-    let dotColor = '#6b7280'; // neutral gray when confused
+    let dotColor: string;
     let dotSize = 3;
-    if (!isConfused) {
-      if (p.id === localPlayer.id) {
-        dotColor = '#3b82f6';
-        dotSize = 4.5; // self is bigger
-      } else if (p.team === localPlayer.team) {
-        dotColor = '#22c55e';
-      } else {
-        dotColor = '#ef4444';
-      }
+
+    if (p.id === localPlayer.id) {
+      dotColor = '#3b82f6'; // self always blue
+      dotSize = 4.5;
+    } else if (isConfused) {
+      dotColor = '#ef4444'; // all others red in confusion
+    } else if (p.team === localPlayer.team) {
+      dotColor = '#22c55e'; // teammate green
+    } else {
+      dotColor = '#ef4444'; // opponent red
     }
 
     // Self: draw a pulsing dot
     if (p.id === localPlayer.id && !isConfused) {
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.25)';
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.25)'; // blue glow
       ctx.beginPath();
-      ctx.arc(x + head.x * scaleX, y + head.y * scaleY, dotSize + 3, 0, Math.PI * 2);
+      ctx.arc(drawX(head.x), drawY(head.y), dotSize + 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
     ctx.fillStyle = dotColor;
     ctx.beginPath();
-    ctx.arc(x + head.x * scaleX, y + head.y * scaleY, dotSize, 0, Math.PI * 2);
+    ctx.arc(drawX(head.x), drawY(head.y), dotSize, 0, Math.PI * 2);
     ctx.fill();
   });
 
   // Draw Confusion Orb on minimap
   if (confusionOrb && confusionOrb.active && !isConfused) {
-    const orbX = x + confusionOrb.x * scaleX;
-    const orbY = y + confusionOrb.y * scaleY;
+    const orbX = drawX(confusionOrb.x);
+    const orbY = drawY(confusionOrb.y);
     const t = Date.now() / 1000;
     const pulse = (Math.sin(t * 5) + 1) / 2;
 
@@ -370,6 +404,7 @@ function drawMinimap(
     ctx.fill();
   }
 
+  // Restore outer save
   ctx.restore();
 }
 
@@ -380,35 +415,50 @@ function drawOrbCountdown(
 ) {
   if (!confusionOrb) return;
 
-  const mapSize = 140;
+  const mapSize = 120;
   const padding = 16;
   const x = padding;
-  const y = canvasH - padding - mapSize - 32;
+  const y = canvasH - padding - mapSize - 40; // Above minimap
 
   ctx.save();
+  
+  // Outer glow and pulsing for orb alert
+  const t = Date.now() / 1000;
+  const pulse = (Math.sin(t * 6) + 1) / 2;
+  
   ctx.globalAlpha = 0.85;
-  ctx.fillStyle = '#0a0e17';
-  roundRect(ctx, x, y, mapSize, 24, 6);
+  ctx.fillStyle = '#0B0E14';
+  roundRect(ctx, x, y, mapSize, 28, 14);
   ctx.fill();
 
-  ctx.strokeStyle = 'rgba(236, 72, 153, 0.4)';
-  ctx.lineWidth = 1;
-  roundRect(ctx, x, y, mapSize, 24, 6);
+  if (confusionOrb.active) {
+    ctx.strokeStyle = `rgba(236, 72, 153, ${0.4 + pulse * 0.6})`;
+    ctx.shadowBlur = 10 + pulse * 15;
+    ctx.shadowColor = '#EC4899';
+    ctx.lineWidth = 1.5 + pulse;
+  } else {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 1;
+  }
+  
+  roundRect(ctx, x, y, mapSize, 28, 14);
   ctx.stroke();
+  ctx.shadowBlur = 0;
 
   ctx.textAlign = 'center';
-  ctx.font = 'bold 11px Inter, sans-serif';
+  ctx.font = 'bold 11px Orbitron, sans-serif';
 
   if (confusionOrb.active) {
-    ctx.fillStyle = '#ec4899';
-    ctx.fillText('Orb Active!', x + mapSize / 2, y + 16);
+    ctx.fillStyle = '#f9a8d4'; // bright pink text
+    ctx.fillText('⚠ ORB ACTIVE!', x + mapSize / 2, y + 18);
   } else if (confusionOrb.spawnsAt) {
     const secondsLeft = Math.max(0, Math.ceil((confusionOrb.spawnsAt - Date.now()) / 1000));
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText(`Next Orb: ${secondsLeft}s`, x + mapSize / 2, y + 16);
+    ctx.fillText(`NEXT ORB: ${secondsLeft}s`, x + mapSize / 2, y + 18);
   } else {
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText('Orb Spawning...', x + mapSize / 2, y + 16);
+    ctx.fillText('ORB SPAWNING...', x + mapSize / 2, y + 18);
   }
 
   ctx.restore();

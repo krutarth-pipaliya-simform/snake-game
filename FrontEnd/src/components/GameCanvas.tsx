@@ -21,7 +21,6 @@ export function GameCanvas() {
   const requestRef = useRef<number>(0);
   const currentDirRef = useRef({ x: 1, y: 0 });
   const needsDirSyncRef = useRef(true);
-  const wasConfusedRef = useRef(false);
 
   const roomStatus = useSelector((state: RootState) => state.room.current?.status);
 
@@ -105,6 +104,18 @@ export function GameCanvas() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const handleResize = () => {
+      if (containerRef.current && canvas) {
+        // Use devicePixelRatio to ensure crisp rendering on high-DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        const rect = containerRef.current.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
     const render = (time: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = time;
       const dt = (time - lastTimeRef.current) / 1000;
@@ -123,31 +134,33 @@ export function GameCanvas() {
         !state.debuff.clearedPlayers?.includes(localPlayer.id)
       );
 
-      if (containerRef.current) {
-        if (isConfused && !wasConfusedRef.current) {
-          console.log(`[Effect Activation] Confusion effect ACTIVATED for local player on team ${localPlayer?.team}`);
-          containerRef.current.classList.add('confused-canvas');
-          wasConfusedRef.current = true;
-        } else if (!isConfused && wasConfusedRef.current) {
-          console.log(`[Effect Activation] Confusion effect DEACTIVATED for local player`);
-          containerRef.current.classList.remove('confused-canvas');
-          wasConfusedRef.current = false;
-        }
-      }
+      // (CSS class toggling removed to use native canvas filter for better HUD quality)
+
+      const logicalWidth = canvas.width / (window.devicePixelRatio || 1);
+      const logicalHeight = canvas.height / (window.devicePixelRatio || 1);
 
       // Render
-      ctx.fillStyle = '#0f1117';
+      ctx.fillStyle = '#0B0E14'; // var(--color-bg-base)
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      ctx.save();
+      const dpr = window.devicePixelRatio || 1;
+      ctx.scale(dpr, dpr);
+
+      // Apply high-quality native canvas filter only to the world (keeps HUD sharp)
+      if (isConfused) {
+        ctx.filter = 'saturate(0.35) hue-rotate(45deg) blur(2px)';
+      }
+
       const head = localPlayer?.segments?.[0] || { x: 2000, y: 2000 };
-      const cameraX = canvas.width / 2 - head.x;
-      const cameraY = canvas.height / 2 - head.y;
+      const cameraX = logicalWidth / 2 - head.x;
+      const cameraY = logicalHeight / 2 - head.y;
 
       ctx.save();
       ctx.translate(cameraX, cameraY);
 
       // Draw grid and border
-      drawBackground(ctx, cameraX, cameraY, canvas.width, canvas.height, isConfused, time);
+      drawBackground(ctx, cameraX, cameraY, logicalWidth, logicalHeight, isConfused, time);
 
       // Draw pipes
       drawPipes(ctx, state.map.pipes, time);
@@ -173,18 +186,15 @@ export function GameCanvas() {
         }
       });
 
-      // Fog of War overlay (drawn over world, under HUD)
-      if (isConfused) {
-        ctx.restore();
-        drawFogOfWar(ctx, canvas.width, canvas.height, time);
-        ctx.save();
-        ctx.translate(cameraX, cameraY);
-      }
-
       // Score popups
       drawScorePopups(ctx, state.scorePopups);
 
-      ctx.restore();
+      ctx.restore(); // remove camera translation
+
+      // Fog of War overlay (drawn over world, under HUD)
+      if (isConfused) {
+        drawFogOfWar(ctx, logicalWidth, logicalHeight, time);
+      }
 
       // HUD (screen-space, always on top)
       if (localPlayer) {
@@ -195,8 +205,8 @@ export function GameCanvas() {
           ctx,
           localPlayer.score,
           localPlayer.segments.length,
-          canvas.width,
-          canvas.height,
+          logicalWidth,
+          logicalHeight,
           state.map.width,
           state.map.height,
           state.players,
@@ -214,13 +224,14 @@ export function GameCanvas() {
             // Compute how many seconds left on the respawn timer
             const elapsed = (Date.now() - localPlayer.diedAt) / 1000;
             const secondsLeft = Math.max(0, respawnDelay - elapsed);
-            drawRespawnCountdown(ctx, secondsLeft, canvas.width, canvas.height);
+            drawRespawnCountdown(ctx, secondsLeft, logicalWidth, logicalHeight);
           } else {
             // No respawn — show waiting overlay
-            drawWaitingForRound(ctx, localPlayer.score, canvas.width, canvas.height);
+            drawWaitingForRound(ctx, localPlayer.score, logicalWidth, logicalHeight);
           }
         }
       }
+      ctx.restore(); // remove base dpr scale
 
       requestRef.current = requestAnimationFrame(render);
     };

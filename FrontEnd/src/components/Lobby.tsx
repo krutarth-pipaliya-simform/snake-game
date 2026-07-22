@@ -102,42 +102,44 @@ export function Lobby() {
   const myTeamId = Object.keys(room.teams).find((tId) => room.teams[tId].playerIds.includes(localPlayer.id));
 
   return (
-    <div className="flex flex-col gap-6 p-6 md:p-8 bg-gray-900 rounded-xl border border-gray-700 w-full max-w-5xl mx-auto mt-8">
+    <div className="flex flex-col gap-8 p-6 md:p-8 card-base w-full max-w-6xl mx-auto mt-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-white">Lobby</h2>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 pb-4 border-b border-[var(--color-border-default)]">
+        <div>
+          <h2 className="text-3xl md:text-4xl font-extrabold font-display text-[var(--color-text-primary)] tracking-wide">Lobby</h2>
+        </div>
         <div 
           onDoubleClick={handleCopyCode}
           title="Double click to copy"
-          className="relative text-xl text-gray-300 bg-black px-4 py-2 rounded-lg font-mono tracking-widest border border-gray-600 cursor-pointer hover:border-gray-500 transition-colors"
+          className="relative flex items-center bg-[var(--bg-panel-raised)] px-4 py-2 rounded-lg border border-[var(--color-border-default)] cursor-pointer hover:border-gray-500 transition-colors"
         >
-          <span className="select-none">ROOM: </span>
-          <span className="text-game-accent font-bold select-all">{room.code}</span>
+          <span className="select-none text-xs text-[var(--color-text-secondary)] font-bold tracking-wider mr-3">ROOM CODE</span>
+          <span className="text-[var(--color-text-primary)] font-mono font-bold text-lg select-all">{room.code}</span>
           {copied && (
-            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-game-success text-white text-xs font-sans tracking-normal font-bold px-2 py-1 rounded shadow-lg whitespace-nowrap z-10 pointer-events-none">
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-success)] text-white text-xs font-bold px-3 py-1 rounded shadow-lg whitespace-nowrap z-10 pointer-events-none">
               Copied!
             </span>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
         {/* ======================== TEAMS ======================== */}
         <div className="space-y-4">
-          <h3 className="text-xl font-bold text-white">Teams</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+          <h3 className="text-xl font-display font-bold text-[var(--color-text-primary)]">Teams</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.entries(room.teams).map(([teamId, team]) => {
               const isMyTeam = myTeamId === teamId;
               const iAmLeader = team.leaderId === localPlayer.id;
 
               return (
-                <div key={teamId} className={`flex flex-col rounded-lg border transition-colors ${isMyTeam ? 'border-game-accent/60 bg-game-accent/5' : 'border-gray-700 bg-gray-800'}`}>
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/60">
-                    <h4 className="font-bold text-white capitalize">{teamId.replace('-', ' ')}</h4>
-                    <span className="text-xs text-gray-400 tabular-nums">{team.playerIds.length}/{room.settings.teamCap}</span>
+                <div key={teamId} className={`flex flex-col bg-[var(--bg-panel-raised)] rounded-lg border transition-colors overflow-hidden ${isMyTeam ? 'border-[var(--color-accent-system)] shadow-[0_0_0_1px_var(--color-accent-system)]' : 'border-[var(--color-border-default)]'}`}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-default)] bg-black/20">
+                    <h4 className="font-display font-bold text-[var(--color-text-primary)] capitalize tracking-wide">{teamId.replace('-', ' ')}</h4>
+                    <span className="text-xs font-bold text-[var(--color-text-secondary)] tabular-nums tracking-widest">{team.playerIds.length} / {room.settings.teamCap}</span>
                   </div>
-                  <div className="flex-1 px-3 py-2 space-y-1.5 min-h-[120px] max-h-[300px] overflow-y-auto">
-                    {team.playerIds.length === 0 && <p className="text-sm text-gray-600 italic py-3 text-center">No players yet</p>}
+                  <div className="flex-1 px-3 py-2 space-y-1">
+                    {team.playerIds.length === 0 && <p className="text-sm text-[var(--color-text-secondary)] italic py-3 text-center">No players yet</p>}
                     {team.playerIds.map((pId) => {
                       const isMe = pId === localPlayer.id;
                       const isThisLeader = pId === team.leaderId;
@@ -146,30 +148,30 @@ export function Lobby() {
                       const isReady = room.players?.[pId]?.isReady ?? false;
 
                       return (
-                        <div key={pId} className="flex items-center justify-between rounded px-3 py-2 text-sm bg-black/30">
+                        <div key={pId} className="flex items-center justify-between rounded px-3 py-2.5 text-sm hover:bg-black/20 transition-colors">
                           <div className="flex items-center gap-2 min-w-0">
-                            {/* Online Indicator (green dot) */}
-                            <div className="w-2 h-2 rounded-full bg-game-success shrink-0" title="Online"></div>
-                            <span className={`truncate ${isMe ? 'text-game-accent font-semibold' : 'text-gray-300'}`}>{displayName}</span>
-                            {isThisLeader && <span title="Team Leader">👑</span>}
-                            {isReady && <span title="Ready" className="text-green-500 text-xs font-bold">✓</span>}
+                            <span className={`truncate ${isMe ? 'text-[var(--color-text-primary)] font-bold' : 'text-[var(--color-text-secondary)]'}`}>{displayName}</span>
+                            {isThisLeader && <span className="text-[var(--color-text-secondary)] text-[10px] font-bold uppercase tracking-widest bg-black/40 px-1.5 py-0.5 rounded">Leader</span>}
+                            {isReady && <span className="text-[var(--color-success)] text-[10px] font-bold uppercase tracking-widest bg-[var(--color-success)]/10 px-1.5 py-0.5 rounded">Ready</span>}
                           </div>
                           <div className="shrink-0 ml-2">
                             {iAmLeader && !isMe && (
-                              <button onClick={() => kickPlayer(pId)} className="text-xs text-red-400 hover:text-red-300 uppercase font-bold cursor-pointer disabled:cursor-not-allowed">Kick</button>
+                              <button onClick={() => kickPlayer(pId)} className="text-[10px] text-[var(--color-danger-alert)] hover:text-red-400 uppercase font-bold tracking-wider cursor-pointer disabled:cursor-not-allowed">Kick</button>
                             )}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="px-3 pb-3 pt-1">
+                  <div className="px-3 pb-3 pt-1 mt-auto">
                     {!isMyTeam ? (
-                      <button onClick={() => joinTeam(teamId)} disabled={team.playerIds.length >= room.settings.teamCap} className="w-full py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white text-sm font-medium rounded transition-colors cursor-pointer disabled:cursor-not-allowed">
-                        Join {teamId.replace('-', ' ')}
+                      <button onClick={() => joinTeam(teamId)} disabled={team.playerIds.length >= room.settings.teamCap} className="w-full py-2 btn-secondary uppercase tracking-widest text-xs font-bold cursor-pointer transition-colors">
+                        Join Team
                       </button>
                     ) : (
-                      <div className="w-full py-2 text-center text-xs text-game-accent font-medium">Your team</div>
+                      <div className="w-full text-center py-2 text-xs text-[var(--color-accent-system)] font-bold uppercase tracking-widest bg-[var(--color-accent-system)]/10 rounded-md">
+                        Your Team
+                      </div>
                     )}
                   </div>
                 </div>
@@ -179,9 +181,9 @@ export function Lobby() {
         </div>
 
         {/* ======================== SETTINGS ======================== */}
-        <div className="space-y-4">
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-            <h3 className="text-lg font-bold text-white mb-3">Settings</h3>
+        <div className="space-y-6">
+          <div className="bg-[var(--bg-panel-raised)] p-6 rounded-lg border border-[var(--color-border-default)] shadow-sm">
+            <h3 className="text-lg font-display font-bold text-[var(--color-text-primary)] mb-4 border-b border-[var(--color-border-default)] pb-3">Settings</h3>
             
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
               <SettingField label="Team Count">
@@ -237,41 +239,44 @@ export function Lobby() {
                   <option value="none">No respawn</option>
                   <option value="timer">Respawn after N seconds</option>
                 </select>
-                
-                <input 
-                  type="number" 
-                  value={respawnDelayStr} 
-                  disabled={!isHost || !isRespawnEnabled} 
-                  onBlur={handleRespawnDelayBlur}
-                  onChange={(e) => setRespawnDelayStr(e.target.value)} 
-                  className={`lobby-input mt-2 transition-opacity ${isRespawnEnabled && (parseInt(respawnDelayStr) < 1 || parseInt(respawnDelayStr) > 60) ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
-                  style={{ 
-                    display: isRespawnEnabled ? 'block' : 'none' 
-                  }} 
-                />
               </SettingField>
+              
+              {isRespawnEnabled && (
+                <div className="mt-3">
+                  <SettingField label="Respawn Delay (s)">
+                    <input 
+                      type="number" 
+                      value={respawnDelayStr} 
+                      disabled={!isHost} 
+                      onBlur={handleRespawnDelayBlur}
+                      onChange={(e) => setRespawnDelayStr(e.target.value)} 
+                      className={`lobby-input ${parseInt(respawnDelayStr) < 1 || parseInt(respawnDelayStr) > 60 ? 'border-[var(--color-danger-alert)] outline-none focus:border-[var(--color-danger-alert)]' : ''}`} 
+                    />
+                  </SettingField>
+                </div>
+              )}
             </div>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <button 
               onClick={() => {
                 const newReady = !localPlayer.isReady;
                 dispatch(setReady(newReady));
                 setReadyState(newReady);
               }} 
-              className={`w-full py-2.5 rounded-lg font-bold text-white transition-all cursor-pointer disabled:cursor-not-allowed ${localPlayer.isReady ? 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-600/20' : 'bg-gray-600 hover:bg-gray-500'}`}
+              className={`w-full py-4 text-sm font-bold tracking-widest uppercase transition-all rounded ${localPlayer.isReady ? 'bg-[var(--color-success)] text-gray-900 border-[var(--color-success)] hover:bg-[var(--color-success)]/90 cursor-pointer' : 'btn-primary cursor-pointer'}`}
             >
-              {localPlayer.isReady ? '✓ Ready' : 'Click to Ready Up'}
+              {localPlayer.isReady ? 'Ready' : 'Ready Up'}
             </button>
             {isHost ? (
               <button 
                 onClick={startRound} 
                 disabled={!canStart} 
-                className="w-full py-3 bg-game-accent hover:bg-game-accent-glow disabled:bg-gray-800 disabled:text-gray-500 text-white font-extrabold text-lg rounded-lg transition-all shadow-lg shadow-game-accent/20 disabled:shadow-none relative group cursor-pointer disabled:cursor-not-allowed"
+                className="w-full py-4 btn-primary relative group"
               >
-                Start Game
+                INITIALIZE GAME
                 {!canStart && (
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-48 text-center bg-black text-xs text-white p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-48 text-center bg-black text-white text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
                     All players must be ready
                   </div>
                 )}
