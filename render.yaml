@@ -2,6 +2,7 @@ services:
   - type: web
     name: snake-game-backend
     env: node
+    plan: free
     rootDir: BackEnd
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start
