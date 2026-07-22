@@ -158,13 +158,8 @@ export class RoomSimulation {
       if (!player.team) continue;
       if (!teamResults[player.team]) teamResults[player.team] = { score: 0, kills: 0 };
       
-      let playerScore = 0;
-      // Alive teammates' final lengths * 10
-      if (player.alive) {
-        playerScore += player.segments.length * 10;
-      }
-      // Sum of teammate kills * 50
-      playerScore += player.kills * 50;
+      // Use the actual accumulated score from pellet eating, rather than inventing a new score here
+      const playerScore = player.score;
       
       teamResults[player.team].score += playerScore;
       teamResults[player.team].kills += player.kills;
@@ -185,36 +180,55 @@ export class RoomSimulation {
     }
     
     let winner: string | null = null;
-    let maxScore = -1;
+    let maxKills = -1;
+    let maxScoreForTie = -1;
     let tie = false;
     
     for (const [teamId, stats] of Object.entries(teamResults)) {
-      if (stats.score > maxScore) {
-        maxScore = stats.score;
+      if (stats.kills > maxKills) {
+        maxKills = stats.kills;
+        maxScoreForTie = stats.score;
         winner = teamId;
         tie = false;
-      } else if (stats.score === maxScore) {
-        tie = true;
+      } else if (stats.kills === maxKills) {
+        // Tied on kills, check score
+        if (stats.score > maxScoreForTie) {
+          maxScoreForTie = stats.score;
+          winner = teamId;
+          tie = false;
+        } else if (stats.score === maxScoreForTie) {
+          tie = true;
+        }
       }
     }
     
-    if (tie || maxScore === 0) winner = null;
+    if (tie && maxKills === 0 && maxScoreForTie === 0) winner = null;
+    if (tie) winner = null;
     
     let matchWinner: string | null = null;
-    let matchMaxScore = -1;
+    let matchMaxKills = -1;
+    let matchMaxScoreForTie = -1;
     let matchTie = false;
     
     for (const [teamId, stats] of Object.entries(this.matchTeamStats)) {
-      if (stats.score > matchMaxScore) {
-        matchMaxScore = stats.score;
+      if (stats.kills > matchMaxKills) {
+        matchMaxKills = stats.kills;
+        matchMaxScoreForTie = stats.score;
         matchWinner = teamId;
         matchTie = false;
-      } else if (stats.score === matchMaxScore) {
-        matchTie = true;
+      } else if (stats.kills === matchMaxKills) {
+        if (stats.score > matchMaxScoreForTie) {
+          matchMaxScoreForTie = stats.score;
+          matchWinner = teamId;
+          matchTie = false;
+        } else if (stats.score === matchMaxScoreForTie) {
+          matchTie = true;
+        }
       }
     }
     
-    if (matchTie || matchMaxScore === 0) matchWinner = null;
+    if (matchTie && matchMaxKills === 0 && matchMaxScoreForTie === 0) matchWinner = null;
+    if (matchTie) matchWinner = null;
     
     return {
       roundResults: { winner, teamResults, playerResults },
