@@ -19,8 +19,8 @@ export function drawSnake(
   let strokeColor: string;
 
   if (isSelf) {
-    displayColor = '#3b82f6'; // My snake always blue
-    strokeColor = '#1e3a8a';
+    displayColor = '#5ea3ff'; // My snake — pre-brightened blue (replaces ctx.filter)
+    strokeColor = '#2b5fb3';
   } else if (isScrambled) {
     displayColor = '#ef4444'; // All others red in confusion
     strokeColor = '#7f1d1d';
@@ -56,9 +56,7 @@ export function drawSnake(
   // Add glow to the entire snake
   ctx.save();
 
-  if (isSelf && !isScrambled) {
-    ctx.filter = 'brightness(1.25) saturate(1.2)';
-  }
+  // brightness/saturate filter removed — pre-computed bright color used instead
 
   ctx.fillStyle = displayColor;
   ctx.strokeStyle = strokeColor;

@@ -1,4 +1,30 @@
 // Phase 9 — Confusion Orb visual improvements + Phase 1 background
+
+// Vignette cache — only depends on canvas dimensions, not camera position
+let vignetteCanvas: HTMLCanvasElement | null = null;
+let vignetteCacheW = 0;
+let vignetteCacheH = 0;
+
+function getVignetteCanvas(w: number, h: number): HTMLCanvasElement {
+  if (vignetteCanvas && vignetteCacheW === w && vignetteCacheH === h) return vignetteCanvas;
+
+  vignetteCanvas = document.createElement('canvas');
+  vignetteCanvas.width = w;
+  vignetteCanvas.height = h;
+  const vCtx = vignetteCanvas.getContext('2d')!;
+
+  const radius = Math.max(w, h) * 0.7;
+  const grad = vCtx.createRadialGradient(w / 2, h / 2, radius * 0.3, w / 2, h / 2, radius);
+  grad.addColorStop(0, 'rgba(11, 14, 20, 0)');
+  grad.addColorStop(1, 'rgba(11, 14, 20, 0.8)');
+  vCtx.fillStyle = grad;
+  vCtx.fillRect(0, 0, w, h);
+
+  vignetteCacheW = w;
+  vignetteCacheH = h;
+  return vignetteCanvas;
+}
+
 export function drawBackground(
   ctx: CanvasRenderingContext2D,
   cameraOffsetX: number,
@@ -17,38 +43,47 @@ export function drawBackground(
   const startX = Math.floor(-cameraOffsetX / GRID) * GRID;
   const startY = Math.floor(-cameraOffsetY / GRID) * GRID;
 
-  // Wavy grid distortion if confused
-  const waveAmplitude = isConfused ? 18 : 0;
-  const waveFrequency = 0.005;
+  if (isConfused) {
+    // Wavy grid distortion — only computed when confusion is active
+    const waveAmplitude = 18;
+    const waveFrequency = 0.005;
 
-  for (let x = startX; x < startX + canvasW + GRID; x += GRID) {
+    for (let x = startX; x < startX + canvasW + GRID; x += GRID) {
+      ctx.beginPath();
+      for (let y = 0; y <= MAP_SIZE; y += 50) {
+        const xOffset = Math.sin(y * waveFrequency + time / 200) * waveAmplitude;
+        if (y === 0) ctx.moveTo(x + xOffset, y);
+        else ctx.lineTo(x + xOffset, y);
+      }
+      ctx.stroke();
+    }
+    for (let y = startY; y < startY + canvasH + GRID; y += GRID) {
+      ctx.beginPath();
+      for (let x = 0; x <= MAP_SIZE; x += 50) {
+        const yOffset = Math.cos(x * waveFrequency + time / 200) * waveAmplitude;
+        if (x === 0) ctx.moveTo(x, y + yOffset);
+        else ctx.lineTo(x, y + yOffset);
+      }
+      ctx.stroke();
+    }
+  } else {
+    // Fast path: straight lines, no sine/cosine computation
     ctx.beginPath();
-    for (let y = 0; y <= MAP_SIZE; y += 50) {
-      const xOffset = Math.sin(y * waveFrequency + time / 200) * waveAmplitude;
-      if (y === 0) ctx.moveTo(x + xOffset, y);
-      else ctx.lineTo(x + xOffset, y);
+    for (let x = startX; x < startX + canvasW + GRID; x += GRID) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, MAP_SIZE);
+    }
+    for (let y = startY; y < startY + canvasH + GRID; y += GRID) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(MAP_SIZE, y);
     }
     ctx.stroke();
   }
-  for (let y = startY; y < startY + canvasH + GRID; y += GRID) {
-    ctx.beginPath();
-    for (let x = 0; x <= MAP_SIZE; x += 50) {
-      const yOffset = Math.cos(x * waveFrequency + time / 200) * waveAmplitude;
-      if (x === 0) ctx.moveTo(x, y + yOffset);
-      else ctx.lineTo(x, y + yOffset);
-    }
-    ctx.stroke();
-  }
 
-  // Radial Vignette
+  // Radial Vignette (cached offscreen canvas — avoids per-frame gradient allocation)
   const sx = -cameraOffsetX;
   const sy = -cameraOffsetY;
-  const radius = Math.max(canvasW, canvasH) * 0.7;
-  const vignetteGrad = ctx.createRadialGradient(sx + canvasW/2, sy + canvasH/2, radius * 0.3, sx + canvasW/2, sy + canvasH/2, radius);
-  vignetteGrad.addColorStop(0, 'rgba(11, 14, 20, 0)');
-  vignetteGrad.addColorStop(1, 'rgba(11, 14, 20, 0.8)'); // --bg-base
-  ctx.fillStyle = vignetteGrad;
-  ctx.fillRect(sx, sy, canvasW, canvasH);
+  ctx.drawImage(getVignetteCanvas(canvasW, canvasH), sx, sy);
 
   // Glowing map border (gradient stroke)
   const grd = ctx.createLinearGradient(0, 0, MAP_SIZE, MAP_SIZE);
@@ -57,10 +92,7 @@ export function drawBackground(
   grd.addColorStop(1, '#ef4444');
   ctx.strokeStyle = grd;
   ctx.lineWidth = 6;
-  ctx.shadowBlur = 20;
-  ctx.shadowColor = '#ef444499';
   ctx.strokeRect(0, 0, MAP_SIZE, MAP_SIZE);
-  ctx.shadowBlur = 0;
 }
 
 export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x: number; y: number; linkedPipeId?: string }[], time: number) {

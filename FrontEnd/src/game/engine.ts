@@ -30,12 +30,23 @@ export function createInitialState(): GameState {
   };
 }
 
-export function applyServerState(state: GameState, serverState: any, dt: number) {
-  // Update state from server
+export function applyServerState(state: GameState, serverState: any, _dt: number) {
+  // Update players in-place to reduce GC pressure
   const serverPlayers = serverState.players as ServerPlayer[];
-  state.players = {};
+  const seen = new Set<string>();
   for (const p of serverPlayers) {
-    state.players[p.id] = p;
+    seen.add(p.id);
+    const existing = state.players[p.id];
+    if (existing) {
+      // Update in-place — preserves object identity, reduces allocations
+      Object.assign(existing, p);
+    } else {
+      state.players[p.id] = p;
+    }
+  }
+  // Remove disconnected players
+  for (const id of Object.keys(state.players)) {
+    if (!seen.has(id)) delete state.players[id];
   }
   
   if (serverState.map) {
@@ -51,8 +62,10 @@ export function applyServerState(state: GameState, serverState: any, dt: number)
     }
     state.debuff = serverState.debuff;
   }
+}
 
-  // Update score popups age (fade out after ~800ms) - purely client-side visual
+/** Age score popups — purely client-side visual, called from rAF loop */
+export function agePopups(state: GameState, dt: number) {
   for (let i = state.scorePopups.length - 1; i >= 0; i--) {
     state.scorePopups[i].age += dt * 1000;
     if (state.scorePopups[i].age > 800) {
@@ -60,4 +73,3 @@ export function applyServerState(state: GameState, serverState: any, dt: number)
     }
   }
 }
-

@@ -173,7 +173,9 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
       const pellet = room.map.pellets[i];
       const pelletRadius = pellet.tier === 'large' ? 15 : pellet.tier === 'medium' ? 10 : 6;
       if (distance(head, pellet) < COLLISION_RADIUS + pelletRadius) {
-        room.map.pellets.splice(i, 1);
+        // Swap-and-pop: O(1) removal instead of O(n) splice
+        room.map.pellets[i] = room.map.pellets[room.map.pellets.length - 1];
+        room.map.pellets.pop();
         player.score += 10;
         player.segments.push({ ...player.segments[player.segments.length - 1] }); // grow 1 segment
       }

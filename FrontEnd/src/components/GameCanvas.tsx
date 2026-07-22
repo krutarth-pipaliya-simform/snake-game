@@ -1,7 +1,7 @@
 // Phase 1 — Game Canvas implementation
 // Phase 9 — Confusion CSS filter toggling
 import { useEffect, useRef } from 'react';
-import { createInitialState, applyServerState } from '../game/engine';
+import { createInitialState, applyServerState, agePopups } from '../game/engine';
 import type { GameState } from '../game/engine';
 import { drawPotion } from '../game/drawPotion';
 import { POTION_CONFIGS } from '../game/potionConfig';
@@ -121,8 +121,8 @@ export function GameCanvas() {
       const dt = (time - lastTimeRef.current) / 1000;
       lastTimeRef.current = time;
 
-      // Advance client-side visual state (popup fading)
-      applyServerState(stateRef.current, { players: Object.values(stateRef.current.players) }, dt);
+      // Advance client-side visual state (popup fading only — no player re-creation)
+      agePopups(stateRef.current, dt);
 
       // Visual Extrapolation to fix stutter between 20Hz server ticks
       const SPEED = 300;
@@ -193,11 +193,17 @@ export function GameCanvas() {
         drawConfusionOrb(ctx, state.map.confusionOrb, time);
       }
 
-      // Draw potions/pellets
-      state.pellets.forEach(pellet => {
+      // Draw potions/pellets (viewport culled — skip off-screen pellets)
+      const vpLeft = -cameraX - 50;
+      const vpRight = -cameraX + logicalWidth + 50;
+      const vpTop = -cameraY - 50;
+      const vpBottom = -cameraY + logicalHeight + 50;
+
+      for (const pellet of state.pellets) {
+        if (pellet.x < vpLeft || pellet.x > vpRight || pellet.y < vpTop || pellet.y > vpBottom) continue;
         const cfg = POTION_CONFIGS[pellet.tier];
         if (cfg) drawPotion(ctx, pellet.x, pellet.y, cfg, time);
-      });
+      }
 
       // Draw all players
       Object.values(state.players).forEach(player => {

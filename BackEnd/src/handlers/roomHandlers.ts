@@ -1,7 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import type { ClientEvents, ServerEvents } from '@shared/types/events';
 import { RoomSimulation, nextColor } from '../simulation/RoomSimulation';
-import { getRoom, setRoom, getRoomBySocketId } from '../simulation/roomManager';
+import { getRoom, setRoom, getRoomBySocketId, registerSocket, unregisterSocket, deleteRoom } from '../simulation/roomManager';
 import { generateRoomCode } from '../utils/roomCode';
 import prisma from '../db/prisma';
 
@@ -17,6 +17,7 @@ export function registerRoomHandlers(
 
     setRoom(code, room);
     socket.join(code);
+    registerSocket(socket.id, code);
 
     // Persist room record to Postgres for durability/history
     try {
@@ -109,6 +110,7 @@ export function registerRoomHandlers(
     }
 
     socket.join(code);
+    registerSocket(socket.id, code);
     io.to(code).emit('room:state', room.toClientRoom());
     console.log(`[Room] ${playerName} (${playerId}) joined ${code}`);
   });
@@ -249,6 +251,7 @@ export function registerRoomHandlers(
   // ─── disconnect cleanup ───────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     const room = getRoomBySocketId(socket.id);
+    unregisterSocket(socket.id);
     if (!room) return;
 
     const playerId = `player-${socket.id}`;
@@ -271,7 +274,9 @@ export function registerRoomHandlers(
         room.hostId = remaining[0];
         console.log(`[Room] Host left ${room.code}, new host: ${room.hostId}`);
       } else {
-        console.log(`[Room] ${room.code} is now empty.`);
+        console.log(`[Room] ${room.code} is now empty. Cleaning up.`);
+        if (room.tickInterval) clearInterval(room.tickInterval);
+        deleteRoom(room.code);
         return; // No one to broadcast to
       }
     }
