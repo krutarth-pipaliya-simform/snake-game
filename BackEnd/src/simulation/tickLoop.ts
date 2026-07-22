@@ -14,12 +14,30 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 let nextPelletId = 0;
 
+// Pellet tier weights — mirrors FrontEnd/src/game/potionConfig.ts
+const PELLET_TIERS: { tier: 'small' | 'medium' | 'large'; weight: number; score: number; growth: number }[] = [
+  { tier: 'small',  weight: 65, score: 10, growth: 1 },
+  { tier: 'medium', weight: 28, score: 30, growth: 2 },
+  { tier: 'large',  weight:  7, score: 75, growth: 3 },
+];
+const PELLET_TOTAL_WEIGHT = PELLET_TIERS.reduce((s, t) => s + t.weight, 0); // 100
+
+function pickPelletTier(): typeof PELLET_TIERS[number] {
+  let roll = Math.random() * PELLET_TOTAL_WEIGHT;
+  for (const t of PELLET_TIERS) {
+    roll -= t.weight;
+    if (roll <= 0) return t;
+  }
+  return PELLET_TIERS[0];
+}
+
 function spawnPellet(room: RoomSimulation): Pellet {
+  const { tier } = pickPelletTier();
   return {
     id: String(nextPelletId++),
     x: Math.random() * (room.map.width - 200) + 100,
     y: Math.random() * (room.map.height - 200) + 100,
-    tier: 'small', // simplified for backend
+    tier,
   };
 }
 
@@ -176,8 +194,13 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
         // Swap-and-pop: O(1) removal instead of O(n) splice
         room.map.pellets[i] = room.map.pellets[room.map.pellets.length - 1];
         room.map.pellets.pop();
-        player.score += 10;
-        player.segments.push({ ...player.segments[player.segments.length - 1] }); // grow 1 segment
+
+        // Award per-tier score and growth
+        const tierData = PELLET_TIERS.find(t => t.tier === pellet.tier) ?? PELLET_TIERS[0];
+        player.score += tierData.score;
+        for (let g = 0; g < tierData.growth; g++) {
+          player.segments.push({ ...player.segments[player.segments.length - 1] });
+        }
       }
     }
     
