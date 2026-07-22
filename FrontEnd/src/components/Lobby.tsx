@@ -65,7 +65,7 @@ export function Lobby() {
 
   const handleRoundDurationBlur = () => {
     const val = parseInt(roundDurationStr);
-    if (!isNaN(val) && val >= 30) {
+    if (!isNaN(val) && val >= 1) {
       updateSettings({ roundDurationSeconds: val });
     }
   };
@@ -211,7 +211,7 @@ export function Lobby() {
                   disabled={!isHost} 
                   onBlur={handleRoundDurationBlur} 
                   onChange={(e) => setRoundDurationStr(e.target.value)} 
-                  className={`lobby-input ${parseInt(roundDurationStr) < 30 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
+                  className={`lobby-input ${parseInt(roundDurationStr) < 1 ? 'border-red-500 outline-none focus:border-red-500 focus:ring-red-500' : ''}`} 
                 />
               </SettingField>
               <SettingField label="Match Rounds">
