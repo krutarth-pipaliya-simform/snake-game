@@ -77,6 +77,7 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
           head.x = exitPipe.x;
           head.y = exitPipe.y;
           player.inPipeTransit = null;
+          player.ignoredPipeId = exitPipe.id;
         } else {
           // Interpolate
           head.x = entryPipe.x + (exitPipe.x - entryPipe.x) * player.inPipeTransit.progress;
@@ -87,8 +88,19 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
         player.inPipeTransit = null;
       }
       
-      player.segments.unshift(head);
-      player.segments.pop();
+      const oldHead = player.segments[0];
+      const d = Math.sqrt((head.x - oldHead.x) ** 2 + (head.y - oldHead.y) ** 2);
+      const steps = Math.max(1, Math.floor(d / 15));
+      
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        player.segments.unshift({
+          x: oldHead.x + (head.x - oldHead.x) * t,
+          y: oldHead.y + (head.y - oldHead.y) * t
+        });
+        player.segments.pop();
+      }
+      
       continue; // Skip normal movement
     }
 
@@ -112,8 +124,8 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     // Insert new head, pop tail
     player.segments.unshift(head);
     
-    // Boosting shrinks the snake predictably (every 5 ticks)
-    if (isActuallyBoosting && room.tickCount % 5 === 0) {
+    // Boosting shrinks the snake predictably (every 15 ticks instead of 5, giving 3x more boost time)
+    if (isActuallyBoosting && room.tickCount % 15 === 0) {
         player.segments.pop(); // additional pop to shrink
     }
     
@@ -122,11 +134,20 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
 
     // Check if entered a pipe this tick
     if (player.alive && !player.inPipeTransit) {
+      let stillInIgnored = false;
       for (const pipe of room.map.pipes) {
         if (distance(head, pipe) < COLLISION_RADIUS * 2) {
+          if (pipe.id === player.ignoredPipeId) {
+            stillInIgnored = true;
+            continue;
+          }
           player.inPipeTransit = { pipeId: pipe.id, progress: 0.0 };
+          player.ignoredPipeId = null;
           break; // Only enter one pipe
         }
+      }
+      if (!stillInIgnored) {
+        player.ignoredPipeId = null;
       }
     }
   }
@@ -158,7 +179,7 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
           expiresAt: Date.now() + 15000 // 15 seconds
         };
         
-        // Schedule reactivation after 45 seconds (15s debuff + 30s cooldown)
+        // Schedule reactivation after 25 seconds (15s debuff + 10s cooldown)
         setTimeout(() => {
           if (room.map.confusionOrb) {
             room.map.confusionOrb.active = true;
@@ -166,31 +187,28 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
             room.map.confusionOrb.y = Math.random() * (room.map.height - 400) + 200;
             io.to(room.code).emit('room:state', room.toClientRoom()); // Re-sync orb pos
           }
-        }, 45000);
+        }, 25000);
       }
     }
     
-    // Check player collisions
+    // Check player collisions (per spec Phase 4 pseudocode)
     let died = false;
     for (const other of allPlayers) {
       if (!other.alive || other.segments.length === 0) continue;
-      
-      const isTeammate = player.team === other.team;
-      const debuffActive = room.debuff && room.debuff.teams.includes(player.team || '');
-      
-      if (player.id !== other.id && isTeammate && !debuffActive) continue;
-      
-      for (let i = 0; i < other.segments.length; i++) {
-        // Skip comparing own head with own head
-        if (player.id === other.id && i === 0) continue;
-        
-        // Don't collide with own body segments that are close to the head (to prevent instant death on tight turns)
-        if (player.id === other.id && i < 10) continue;
 
+      // Per spec: ALWAYS skip self — self-collision is intentionally not fatal
+      if (player.id === other.id) continue;
+
+      const isTeammate = player.team === other.team;
+      // Debuff applies friendly-fire: only skip teammates when debuff is NOT active on this player's team
+      const debuffActive = !!(room.debuff && room.debuff.teams.includes(player.team || ''));
+      if (isTeammate && !debuffActive) continue;
+
+      for (let i = 0; i < other.segments.length; i++) {
         const seg = other.segments[i];
         if (distance(head, seg) < COLLISION_RADIUS) {
-          if (i === 0 && player.id !== other.id) {
-            // Head-to-Head
+          if (i === 0) {
+            // Head-to-Head: larger snake wins; equal size = both die
             if (player.segments.length > other.segments.length) {
               other.alive = false;
               player.kills += 1;
@@ -204,14 +222,12 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
               died = true;
             }
           } else {
-            // Head-to-Body or Head-to-Own-Body
+            // Head-to-Body: always fatal to the head-owner
             player.alive = false;
-            if (player.id !== other.id) {
-              other.kills += 1;
-            }
+            other.kills += 1;
             died = true;
           }
-          break; // Stop checking this player's collisions this tick
+          break;
         }
       }
       if (died) break;
@@ -258,40 +274,19 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
         clearInterval(room.tickInterval);
         room.tickInterval = null;
       }
-      io.to(room.code).emit('round:ended', { winner: null, teamResults: {} });
+      
+      // Reset ready state for all players so they must re-ready for next round
+      for (const p of Object.values(room.players)) { p.isReady = false; }
+      
+      const results = room.calculateRoundResults();
+      console.log(`[Round] Round ended for room ${room.code}. Status: ${room.status}`);
+      io.to(room.code).emit('round:ended', results);
       io.to(room.code).emit('room:state', room.toClientRoom());
       
-      // Auto-transition
       if (room.status === 'round_ended') {
-        setTimeout(() => {
-          room.currentRound++;
-          room.status = 'in_round';
-          room.roundStartedAt = Date.now();
-          // Respawn players
-          const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-          for (const p of Object.values(room.players)) {
-            p.alive = true;
-            p.diedAt = null;
-            p.score = 0;
-            p.kills = 0;
-            const spawnX = Math.random() * (room.map.width - 400) + 200;
-            const spawnY = Math.random() * (room.map.height - 400) + 200;
-            p.direction = dirs[Math.floor(Math.random() * dirs.length)];
-            p.segments = [];
-            for (let i = 0; i < 5; i++) {
-              p.segments.push({ x: spawnX - (p.direction.x * i * 15), y: spawnY - (p.direction.y * i * 15) });
-            }
-          }
-          room.tickInterval = setInterval(() => simulateTick(room, io), 50);
-          io.to(room.code).emit('room:state', room.toClientRoom());
-        }, 5000); // 5 seconds between rounds
+        // UI overlay should provide a button to start next round
       } else if (room.status === 'match_ended') {
-        setTimeout(() => {
-          room.currentRound = 1;
-          room.status = 'lobby';
-          for (const p of Object.values(room.players)) { p.isReady = false; }
-          io.to(room.code).emit('room:state', room.toClientRoom());
-        }, 5000); // 5 seconds then back to lobby
+        // UI overlay should provide a button to return to lobby
       }
     }
   }
@@ -314,6 +309,7 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
          inPipeTransit: p.inPipeTransit,
          lastInputAt: p.lastInputAt,
          isReady: p.isReady,
+         diedAt: p.diedAt,
       })),
       map: room.map,
       debuff: room.debuff,

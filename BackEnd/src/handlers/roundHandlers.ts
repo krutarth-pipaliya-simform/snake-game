@@ -16,7 +16,17 @@ export function registerRoundHandlers(
       socket.emit('error', { message: 'Only the host can start the round.' });
       return;
     }
-    if (room.status !== 'lobby') return;
+    if (room.status !== 'lobby' && room.status !== 'round_ended') return;
+
+    const allPlayersReady = Object.values(room.players).length > 0 && Object.values(room.players).every(p => p.isReady);
+    if (!allPlayersReady) {
+      socket.emit('error', { message: 'All players must be ready to start.' });
+      return;
+    }
+
+    if (room.status === 'round_ended') {
+      room.currentRound++;
+    }
 
     room.status = 'in_round';
     room.roundStartedAt = Date.now();
@@ -89,40 +99,37 @@ export function registerRoundHandlers(
         clearInterval(room.tickInterval);
         room.tickInterval = null;
       }
-      io.to(room.code).emit('round:ended', { winner: null, teamResults: {} });
+
+      // Reset ready state for all players so they must re-ready for next round
+      for (const p of Object.values(room.players)) { p.isReady = false; }
+
+      const results = room.calculateRoundResults();
+      io.to(room.code).emit('round:ended', results);
       io.to(room.code).emit('room:state', room.toClientRoom());
 
       if (room.status === 'round_ended') {
-        setTimeout(() => {
-          room.currentRound++;
-          room.status = 'in_round';
-          room.roundStartedAt = Date.now();
-          // Respawn players
-          const spawnDirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-          for (const p of Object.values(room.players)) {
-            p.alive = true;
-            p.diedAt = null;
-            p.score = 0;
-            p.kills = 0;
-            const spawnX = Math.random() * (room.map.width - 400) + 200;
-            const spawnY = Math.random() * (room.map.height - 400) + 200;
-            p.direction = spawnDirs[Math.floor(Math.random() * spawnDirs.length)];
-            p.segments = [];
-            for (let i = 0; i < 5; i++) {
-              p.segments.push({ x: spawnX - (p.direction.x * i * 15), y: spawnY - (p.direction.y * i * 15) });
-            }
-          }
-          room.tickInterval = setInterval(() => simulateTick(room, io), 50);
-          io.to(room.code).emit('room:state', room.toClientRoom());
-        }, 5000);
+        // Handled by UI button calling round:start
       } else if (room.status === 'match_ended') {
-        setTimeout(() => {
-          room.currentRound = 1;
-          room.status = 'lobby';
-          for (const p of Object.values(room.players)) { p.isReady = false; }
-          io.to(room.code).emit('room:state', room.toClientRoom());
-        }, 5000);
+        // Handled by UI button calling round:returnLobby
       }
     }
+  });
+
+  socket.on('round:returnLobby', () => {
+    const room = getRoomBySocketId(socket.id);
+    if (!room) return;
+
+    const requesterId = `player-${socket.id}`;
+    if (room.hostId !== requesterId) {
+      socket.emit('error', { message: 'Only the host can return to lobby.' });
+      return;
+    }
+    
+    if (room.status !== 'match_ended' && room.status !== 'round_ended') return;
+
+    room.currentRound = 1;
+    room.status = 'lobby';
+    for (const p of Object.values(room.players)) { p.isReady = false; }
+    io.to(room.code).emit('room:state', room.toClientRoom());
   });
 }
