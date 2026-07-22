@@ -26,4 +26,9 @@ export function registerGameHandlers(
       player.lastInputAt = Date.now();
     }
   });
+
+  // Ping: echo the client's timestamp straight back — no server clock involved
+  socket.on('ping:req', ({ t }) => {
+    socket.emit('ping:ack', { t });
+  });
 }

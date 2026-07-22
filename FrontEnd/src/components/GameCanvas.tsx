@@ -21,6 +21,7 @@ export function GameCanvas() {
   const requestRef = useRef<number>(0);
   const currentDirRef = useRef({ x: 1, y: 0 });
   const needsDirSyncRef = useRef(true);
+  const pingMsRef = useRef<number>(-1); // -1 = not yet measured
 
   const roomStatus = useSelector((state: RootState) => state.room.current?.status);
 
@@ -57,6 +58,23 @@ export function GameCanvas() {
 
     socket.on('tick:state', handleTick);
     return () => { socket.off('tick:state', handleTick); };
+  }, []);
+
+  // Ping measurement — emit every 2 s, server echoes timestamp back
+  useEffect(() => {
+    const sendPing = () => {
+      socket.emit('ping:req', { t: performance.now() });
+    };
+    const handleAck = ({ t }: { t: number }) => {
+      pingMsRef.current = Math.round(performance.now() - t);
+    };
+    socket.on('ping:ack', handleAck);
+    sendPing(); // measure immediately on mount
+    const interval = setInterval(sendPing, 2000);
+    return () => {
+      clearInterval(interval);
+      socket.off('ping:ack', handleAck);
+    };
   }, []);
 
   // Keyboard input
@@ -245,7 +263,8 @@ export function GameCanvas() {
           isConfused,
           debuffExpiresAt,
           state.map.pipes,
-          state.map.confusionOrb
+          state.map.confusionOrb,
+          pingMsRef.current,
         );
 
         const isRoundActive = room?.status !== 'round_ended' && room?.status !== 'match_ended';

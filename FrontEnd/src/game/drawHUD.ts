@@ -22,7 +22,8 @@ export function drawHUD(
   isConfused: boolean,
   debuffExpiresAt: number | null,
   pipes: { id: string; x: number; y: number; linkedPipeId?: string }[] = [],
-  confusionOrb?: { x: number; y: number; active: boolean; spawnsAt?: number | null } | null
+  confusionOrb?: { x: number; y: number; active: boolean; spawnsAt?: number | null } | null,
+  pingMs: number = -1,
 ) {
   // Local player team color for HUD accents
   let teamColor = '#3b82f6'; // Default blue
@@ -85,6 +86,9 @@ export function drawHUD(
   ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
   ctx.textAlign = 'center';
   ctx.fillText(hintText, hintX + hintW / 2, hintY + 18);
+
+  // Ping badge — sits below the controls hint
+  _drawPingBadge(ctx, canvasW, hintX, hintY + hintH + 6, hintW, pingMs);
 
   ctx.restore();
 
@@ -253,6 +257,71 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 function hexToRgb(hex: string): string {
   const n = parseInt(hex.replace('#', ''), 16);
   return `${(n >> 16) & 0xff},${(n >> 8) & 0xff},${n & 0xff}`;
+}
+
+function _drawPingBadge(
+  ctx: CanvasRenderingContext2D,
+  _canvasW: number,
+  x: number,
+  y: number,
+  w: number,
+  pingMs: number,
+) {
+  const h = 24;
+  const r = 12;
+
+  // Colour scale
+  let dotColor: string;
+  let label: string;
+  if (pingMs < 0) {
+    dotColor = '#64748b'; // grey — not yet measured
+    label = 'Connecting…';
+  } else if (pingMs <= 80) {
+    dotColor = '#22c55e'; // green — excellent
+    label = `${pingMs} ms`;
+  } else if (pingMs <= 150) {
+    dotColor = '#eab308'; // yellow — good
+    label = `${pingMs} ms`;
+  } else if (pingMs <= 300) {
+    dotColor = '#f97316'; // orange — fair
+    label = `${pingMs} ms`;
+  } else {
+    dotColor = '#ef4444'; // red — poor
+    label = `${pingMs} ms`;
+  }
+
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+
+  // Pill background
+  ctx.fillStyle = 'rgba(11, 14, 20, 0.55)';
+  roundRect(ctx, x, y, w, h, r);
+  ctx.fill();
+
+  // Pill border (same colour as dot, subtle)
+  ctx.strokeStyle = pingMs < 0 ? 'rgba(255,255,255,0.08)' : `${dotColor}55`;
+  ctx.lineWidth = 1;
+  roundRect(ctx, x, y, w, h, r);
+  ctx.stroke();
+
+  ctx.globalAlpha = 1;
+
+  // Coloured status dot
+  const dotR = 4;
+  const dotX = x + 14;
+  const dotY = y + h / 2;
+  ctx.fillStyle = dotColor;
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Label text
+  ctx.fillStyle = pingMs < 0 ? '#64748b' : '#e2e8f0';
+  ctx.font = '10px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, x + w / 2 + 4, dotY + 4);
+
+  ctx.restore();
 }
 
 function drawMinimap(

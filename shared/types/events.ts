@@ -19,6 +19,7 @@ export interface ClientEvents {
   'round:returnLobby': (payload: {}) => void;
   'input:direction': (payload: { x: number; y: number }) => void;
   'input:boost': (payload: { boosting: boolean }) => void;
+  'ping:req': (payload: { t: number }) => void;
 }
 
 // Server → Client events
@@ -27,4 +28,5 @@ export interface ServerEvents {
   'tick:state': (state: any) => void; // Will refine later
   'round:ended': (state: any) => void; // Will refine later
   'error': (error: { message: string }) => void;
+  'ping:ack': (payload: { t: number }) => void;
 }
