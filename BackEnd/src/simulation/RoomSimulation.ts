@@ -53,6 +53,8 @@ export class RoomSimulation {
   tickInterval: ReturnType<typeof setInterval> | null;
   currentRound: number;
   tickCount: number;
+  matchTeamStats: Record<string, { score: number; kills: number }>;
+  matchPlayerStats: Record<string, { score: number; kills: number }>;
 
   constructor(code: string, hostId: string, hostSocketId: string, hostName: string) {
     this.code = code;
@@ -102,6 +104,8 @@ export class RoomSimulation {
     this.roundStartedAt = null;
     this.votesToEndRound = new Set();
     this.tickInterval = null;
+    this.matchTeamStats = {};
+    this.matchPlayerStats = {};
   }
 
   /** Serialize to the Room shape sent to clients — strips internal-only fields (socketId, etc.) */
@@ -132,7 +136,8 @@ export class RoomSimulation {
       next[id] = this.teams[id] ?? { leaderId: '', playerIds: [] };
     }
     // Evict players from teams that no longer exist
-    for (const [id, team] of Object.entries(this.teams)) {
+    for (const [id, t] of Object.entries(this.teams)) {
+      const team = t as { leaderId: string; playerIds: string[] };
       if (!next[id]) {
         for (const pid of team.playerIds) {
           if (this.players[pid]) this.players[pid].team = '';
@@ -144,6 +149,7 @@ export class RoomSimulation {
 
   calculateRoundResults() {
     const teamResults: Record<string, { score: number; kills: number }> = {};
+    const playerResults: Record<string, { score: number; kills: number }> = {};
     for (const teamId of Object.keys(this.teams)) {
       teamResults[teamId] = { score: 0, kills: 0 };
     }
@@ -152,13 +158,30 @@ export class RoomSimulation {
       if (!player.team) continue;
       if (!teamResults[player.team]) teamResults[player.team] = { score: 0, kills: 0 };
       
+      let playerScore = 0;
       // Alive teammates' final lengths * 10
       if (player.alive) {
-        teamResults[player.team].score += player.segments.length * 10;
+        playerScore += player.segments.length * 10;
       }
       // Sum of teammate kills * 50
-      teamResults[player.team].score += player.kills * 50;
+      playerScore += player.kills * 50;
+      
+      teamResults[player.team].score += playerScore;
       teamResults[player.team].kills += player.kills;
+      
+      playerResults[player.id] = { score: playerScore, kills: player.kills };
+    }
+    
+    // Update match stats
+    for (const [teamId, stats] of Object.entries(teamResults)) {
+      if (!this.matchTeamStats[teamId]) this.matchTeamStats[teamId] = { score: 0, kills: 0 };
+      this.matchTeamStats[teamId].score += stats.score;
+      this.matchTeamStats[teamId].kills += stats.kills;
+    }
+    for (const [playerId, stats] of Object.entries(playerResults)) {
+      if (!this.matchPlayerStats[playerId]) this.matchPlayerStats[playerId] = { score: 0, kills: 0 };
+      this.matchPlayerStats[playerId].score += stats.score;
+      this.matchPlayerStats[playerId].kills += stats.kills;
     }
     
     let winner: string | null = null;
@@ -177,6 +200,25 @@ export class RoomSimulation {
     
     if (tie || maxScore === 0) winner = null;
     
-    return { winner, teamResults };
+    let matchWinner: string | null = null;
+    let matchMaxScore = -1;
+    let matchTie = false;
+    
+    for (const [teamId, stats] of Object.entries(this.matchTeamStats)) {
+      if (stats.score > matchMaxScore) {
+        matchMaxScore = stats.score;
+        matchWinner = teamId;
+        matchTie = false;
+      } else if (stats.score === matchMaxScore) {
+        matchTie = true;
+      }
+    }
+    
+    if (matchTie || matchMaxScore === 0) matchWinner = null;
+    
+    return {
+      roundResults: { winner, teamResults, playerResults },
+      matchResults: { winner: matchWinner, teamResults: this.matchTeamStats, playerResults: this.matchPlayerStats }
+    };
   }
 }

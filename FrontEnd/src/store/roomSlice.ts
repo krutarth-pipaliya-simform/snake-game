@@ -2,15 +2,23 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { Room, RoomStatus, RoomSettings } from '../types/room';
 
+interface ResultsPayload {
+  winner: string | null;
+  teamResults: Record<string, { score: number; kills: number }>;
+  playerResults: Record<string, { score: number; kills: number }>;
+}
+
 interface RoomState {
   /** Current room data — null when not in a room */
   current: Room | null;
-  roundResults: { winner: string | null; teamResults: Record<string, {score: number, kills: number}> } | null;
+  roundResults: ResultsPayload | null;
+  matchResults: ResultsPayload | null;
 }
 
 const initialState: RoomState = {
   current: null,
   roundResults: null,
+  matchResults: null,
 };
 
 export const roomSlice = createSlice({
@@ -33,9 +41,11 @@ export const roomSlice = createSlice({
     clearRoom(state) {
       state.current = null;
       state.roundResults = null;
+      state.matchResults = null;
     },
-    setRoundResults(state, action: PayloadAction<{ winner: string | null; teamResults: Record<string, {score: number, kills: number}> }>) {
-      state.roundResults = action.payload;
+    setRoundResults(state, action: PayloadAction<{ roundResults: ResultsPayload; matchResults: ResultsPayload }>) {
+      state.roundResults = action.payload.roundResults;
+      state.matchResults = action.payload.matchResults;
     }
   },
 });

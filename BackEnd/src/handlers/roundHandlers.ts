@@ -31,6 +31,9 @@ export function registerRoundHandlers(
 
     if (room.status === 'lobby') {
       room.map.pipes = generateRandomPipes(room.map.width, room.map.height);
+      room.matchTeamStats = {};
+      room.matchPlayerStats = {};
+      room.currentRound = 1;
     }
 
     room.status = 'in_round';

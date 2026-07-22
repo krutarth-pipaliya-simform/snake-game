@@ -69,8 +69,8 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     if (player.inPipeTransit) {
       player.inPipeTransit.progress += 0.1; // 50ms per tick, 500ms total
 
-      const entryPipe = room.map.pipes.find(p => p.id === player.inPipeTransit!.pipeId);
-      const exitPipe = room.map.pipes.find(p => p.id === entryPipe?.linkedPipeId);
+      const entryPipe = room.map.pipes.find((p: any) => p.id === player.inPipeTransit!.pipeId);
+      const exitPipe = room.map.pipes.find((p: any) => p.id === entryPipe?.linkedPipeId);
 
       if (entryPipe && exitPipe) {
         if (player.inPipeTransit.progress >= 1.0) {
@@ -127,7 +127,16 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     
     // Boosting shrinks the snake predictably (every 15 ticks instead of 5, giving 3x more boost time)
     if (isActuallyBoosting && room.tickCount % 15 === 0) {
-        player.segments.pop(); // additional pop to shrink
+        const droppedTail = player.segments.pop(); // additional pop to shrink
+        if (droppedTail) {
+            player.score = Math.max(0, player.score - 10); // Lose score corresponding to the segment
+            room.map.pellets.push({
+                id: String(nextPelletId++),
+                x: droppedTail.x,
+                y: droppedTail.y,
+                tier: 'small',
+            });
+        }
     }
     
     // Always pop one to maintain length unless eating
