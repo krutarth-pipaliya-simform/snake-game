@@ -1,0 +1,12 @@
+#!/bin/sh
+
+echo "[pre-commit] Running lint-staged..."
+npx lint-staged
+
+echo "[pre-commit] Verifying FrontEnd build..."
+cd FrontEnd && npx tsc --noEmit && cd ..
+
+echo "[pre-commit] Verifying BackEnd build..."
+cd BackEnd && npx tsc --noEmit && cd ..
+
+echo "[pre-commit] ✅ All checks passed"
