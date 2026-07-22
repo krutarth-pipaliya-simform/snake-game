@@ -266,48 +266,66 @@ function drawMinimap(
   pipes: { id: string; x: number; y: number; linkedPipeId?: string }[] = [],
   confusionOrb?: { x: number; y: number; active: boolean; spawnsAt?: number | null } | null
 ) {
-  const mapSize = 120;
-  const mapRadius = mapSize / 2;
+  const mapSize = 130; // square side length
+  const cornerRadius = 8;
   const padding = 16;
-  const x = padding + mapRadius;
-  const y = canvasH - padding - mapRadius;
+  // Top-left corner of the square minimap
+  const mx = padding;
+  const my = canvasH - padding - mapSize;
 
   ctx.save();
-  ctx.globalAlpha = 0.85;
-  ctx.fillStyle = '#131824'; // --bg-panel
-  
-  // Minimap base (circular)
-  ctx.beginPath();
-  ctx.arc(x, y, mapRadius, 0, Math.PI * 2);
+
+  // Background fill
+  ctx.globalAlpha = 0.88;
+  ctx.fillStyle = '#131824';
+  roundRect(ctx, mx, my, mapSize, mapSize, cornerRadius);
   ctx.fill();
 
   // Border
-  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.6)' : 'rgba(42, 51, 69, 1)'; // --border-default
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.7)' : 'rgba(42, 51, 69, 1)';
+  ctx.lineWidth = 1.5;
   ctx.globalAlpha = 1;
+  roundRect(ctx, mx, my, mapSize, mapSize, cornerRadius);
   ctx.stroke();
 
-  // Clip to circle so contents don't bleed out
-  ctx.beginPath();
-  ctx.arc(x, y, mapRadius, 0, Math.PI * 2);
+  // Clip to the rounded square — full map visible
+  roundRect(ctx, mx, my, mapSize, mapSize, cornerRadius);
   ctx.clip();
 
-  // Label
-  ctx.fillStyle = isConfused ? 'rgba(139, 92, 246, 0.7)' : 'rgba(92, 102, 120, 0.8)';
-  ctx.font = '9px Inter, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(isConfused ? 'SCRAMBLED' : 'MINIMAP', x, y - mapRadius + 14);
+  // Subtle map grid lines
+  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.08)' : 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  const gridStep = mapSize / 4;
+  ctx.beginPath();
+  for (let i = 1; i < 4; i++) {
+    ctx.moveTo(mx + i * gridStep, my);
+    ctx.lineTo(mx + i * gridStep, my + mapSize);
+    ctx.moveTo(mx, my + i * gridStep);
+    ctx.lineTo(mx + mapSize, my + i * gridStep);
+  }
+  ctx.stroke();
 
-  // Draw dots for players
+  // Label
+  ctx.fillStyle = isConfused ? 'rgba(139, 92, 246, 0.8)' : 'rgba(92, 102, 120, 0.9)';
+  ctx.font = 'bold 8px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(isConfused ? 'SCRAMBLED' : 'MINIMAP', mx + mapSize / 2, my + 11);
+
+  // Map border outline inside minimap
+  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.25)' : 'rgba(239, 68, 68, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx + 1, my + 1, mapSize - 2, mapSize - 2);
+
+  // Coordinate helpers — map world coords to minimap pixel coords
   const scaleX = mapSize / mapW;
   const scaleY = mapSize / mapH;
-  const drawX = (px: number) => x - mapRadius + px * scaleX;
-  const drawY = (py: number) => y - mapRadius + py * scaleY;
+  const drawX = (px: number) => mx + px * scaleX;
+  const drawY = (py: number) => my + py * scaleY;
 
   // Draw pipe connections on minimap
   if (!isConfused && pipes.length > 0) {
     const drawnLinks = new Set<string>();
-    
+
     for (const pipe of pipes) {
       if (!pipe.linkedPipeId) continue;
       const linked = pipes.find(p => p.id === pipe.linkedPipeId);
@@ -321,8 +339,8 @@ function drawMinimap(
       const y1 = drawY(pipe.y);
       const x2 = drawX(linked.x);
       const y2 = drawY(linked.y);
-      
-      const isVerticalFirst = (pipe.id > linked.id); 
+
+      const isVerticalFirst = (pipe.id > linked.id);
       const dx = Math.abs(x2 - x1);
       const dy = Math.abs(y2 - y1);
       const radius = Math.min(4, dx / 2, dy / 2);
@@ -339,21 +357,22 @@ function drawMinimap(
         ctx.arcTo(xMid, y2, x2, y2, radius);
       }
       ctx.lineTo(x2, y2);
-      
+
       ctx.lineWidth = 1;
       ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)';
       ctx.stroke();
     }
-    
+
     // Draw pipe dots
     for (const pipe of pipes) {
-      ctx.fillStyle = 'rgba(139, 92, 246, 0.7)';
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.8)';
       ctx.beginPath();
-      ctx.arc(drawX(pipe.x), drawY(pipe.y), 1.5, 0, Math.PI * 2);
+      ctx.arc(drawX(pipe.x), drawY(pipe.y), 2, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
+  // Draw player dots
   Object.values(players).forEach(p => {
     if (!p.alive || p.segments.length === 0) return;
     const head = p.segments[0];
@@ -362,21 +381,21 @@ function drawMinimap(
     let dotSize = 3;
 
     if (p.id === localPlayer.id) {
-      dotColor = '#3b82f6'; // self always blue
+      dotColor = '#5ea3ff'; // self bright blue
       dotSize = 4.5;
     } else if (isConfused) {
-      dotColor = '#ef4444'; // all others red in confusion
+      dotColor = '#ef4444';
     } else if (p.team === localPlayer.team) {
-      dotColor = '#22c55e'; // teammate green
+      dotColor = '#22c55e';
     } else {
-      dotColor = '#ef4444'; // opponent red
+      dotColor = '#ef4444';
     }
 
-    // Self: draw a pulsing dot
+    // Self: pulsing halo
     if (p.id === localPlayer.id && !isConfused) {
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.25)'; // blue glow
+      ctx.fillStyle = 'rgba(94, 163, 255, 0.2)';
       ctx.beginPath();
-      ctx.arc(drawX(head.x), drawY(head.y), dotSize + 3, 0, Math.PI * 2);
+      ctx.arc(drawX(head.x), drawY(head.y), dotSize + 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -404,7 +423,6 @@ function drawMinimap(
     ctx.fill();
   }
 
-  // Restore outer save
   ctx.restore();
 }
 
@@ -415,7 +433,7 @@ function drawOrbCountdown(
 ) {
   if (!confusionOrb) return;
 
-  const mapSize = 120;
+  const mapSize = 130; // matches square minimap size
   const padding = 16;
   const x = padding;
   const y = canvasH - padding - mapSize - 40; // Above minimap
