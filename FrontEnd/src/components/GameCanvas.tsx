@@ -60,20 +60,44 @@ export function GameCanvas() {
     return () => { socket.off('tick:state', handleTick); };
   }, []);
 
-  // Ping measurement — emit every 2 s, server echoes timestamp back
+  // Ping measurement — waits for connection, re-measures on reconnect
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     const sendPing = () => {
+      if (!socket.connected) return;
+      // Set a timeout: if no ack in 6s, mark as no-response
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        pingMsRef.current = 9999; // sentinel: no response
+      }, 6000);
       socket.emit('ping:req', { t: performance.now() });
     };
+
     const handleAck = ({ t }: { t: number }) => {
+      if (timeoutId) clearTimeout(timeoutId);
       pingMsRef.current = Math.round(performance.now() - t);
     };
+
+    const startLoop = () => {
+      sendPing();
+      if (interval) clearInterval(interval);
+      interval = setInterval(sendPing, 2000);
+    };
+
     socket.on('ping:ack', handleAck);
-    sendPing(); // measure immediately on mount
-    const interval = setInterval(sendPing, 2000);
+
+    if (socket.connected) {
+      startLoop();
+    }
+    socket.on('connect', startLoop);
+
     return () => {
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
+      if (timeoutId) clearTimeout(timeoutId);
       socket.off('ping:ack', handleAck);
+      socket.off('connect', startLoop);
     };
   }, []);
 

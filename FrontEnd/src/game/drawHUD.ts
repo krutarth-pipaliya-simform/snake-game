@@ -275,7 +275,10 @@ function _drawPingBadge(
   let label: string;
   if (pingMs < 0) {
     dotColor = '#64748b'; // grey — not yet measured
-    label = 'Connecting…';
+    label = 'Connecting\u2026';
+  } else if (pingMs === 9999) {
+    dotColor = '#ef4444'; // red — no response from server
+    label = 'No response';
   } else if (pingMs <= 80) {
     dotColor = '#22c55e'; // green — excellent
     label = `${pingMs} ms`;

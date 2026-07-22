@@ -23,6 +23,12 @@ io.on('connection', (socket) => {
   registerRoomHandlers(io, socket);
   registerRoundHandlers(io, socket);
   registerGameHandlers(io, socket);
+
+  // Ping: echo client timestamp straight back — no server clock involved
+  socket.on('ping:req', ({ t }: { t: number }) => {
+    socket.emit('ping:ack', { t });
+  });
+
   socket.on('disconnect', () => {
     console.log(`[Socket] Disconnected: ${socket.id}`);
   });
