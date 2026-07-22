@@ -209,7 +209,7 @@ export function registerRoomHandlers(
     }
 
     if (settings.roundDurationSeconds !== undefined) {
-      room.settings.roundDurationSeconds = Math.max(30, settings.roundDurationSeconds);
+      room.settings.roundDurationSeconds = Math.max(1, settings.roundDurationSeconds);
     }
     if (settings.teamCap !== undefined) {
       room.settings.teamCap = Math.max(1, settings.teamCap);
