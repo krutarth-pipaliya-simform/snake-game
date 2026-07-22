@@ -20,8 +20,8 @@ export function generateRandomPipes(width: number, height: number): Room['map'][
     const id1 = `pipe-${i * 2 + 1}`;
     const id2 = `pipe-${i * 2 + 2}`;
     
-    let x1 = padding + Math.random() * (width - 2 * padding);
-    let y1 = padding + Math.random() * (height - 2 * padding);
+    const x1 = padding + Math.random() * (width - 2 * padding);
+    const y1 = padding + Math.random() * (height - 2 * padding);
     let x2 = padding + Math.random() * (width - 2 * padding);
     let y2 = padding + Math.random() * (height - 2 * padding);
     
@@ -79,7 +79,12 @@ export class RoomSimulation {
       height: 4000,
       pipes: generateRandomPipes(4000, 4000),
       pellets: [],
-      confusionOrb: { x: 2000, y: 2000, active: true, spawnsAt: null },
+      confusionOrb: { 
+        x: Math.random() * (4000 - 400) + 200, 
+        y: Math.random() * (4000 - 400) + 200, 
+        active: true, 
+        spawnsAt: null 
+      },
     };
     this.debuff = null;
     this.players = {
