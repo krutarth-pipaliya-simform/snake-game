@@ -227,8 +227,10 @@ export function GameCanvas() {
       // Draw grid and border
       drawBackground(ctx, cameraX, cameraY, logicalWidth, logicalHeight, isConfused, time);
 
-      // Draw pipes
-      drawPipes(ctx, state.map.pipes, time);
+      // Draw pipes (from static room state since they don't change per tick)
+      const room = store.getState().room.current;
+      const staticPipes = room?.map.pipes || [];
+      drawPipes(ctx, staticPipes, time);
 
       // Draw Confusion Orb
       if (state.map.confusionOrb) {
@@ -286,7 +288,7 @@ export function GameCanvas() {
           localPlayer,
           isConfused,
           debuffExpiresAt,
-          state.map.pipes,
+          staticPipes,
           state.map.confusionOrb,
           pingMsRef.current,
         );
