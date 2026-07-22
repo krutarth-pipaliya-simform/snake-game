@@ -55,8 +55,6 @@ export function drawSnake(
 
   // Add glow to the entire snake
   ctx.save();
-  ctx.shadowBlur = isScrambled ? 12 : 16;
-  ctx.shadowColor = displayColor;
 
   if (isSelf && !isScrambled) {
     ctx.filter = 'brightness(1.25) saturate(1.2)';
@@ -84,6 +82,10 @@ export function drawSnake(
     ctx.fill();
     ctx.stroke();
   }
+
+  // Add glow to the head
+  ctx.shadowBlur = isScrambled ? 12 : 16;
+  ctx.shadowColor = displayColor;
 
   // Draw Head
   _drawHead(ctx, player, displayColor, isScrambled);

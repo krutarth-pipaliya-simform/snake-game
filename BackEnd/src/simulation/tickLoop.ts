@@ -338,7 +338,10 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
          isReady: p.isReady,
          diedAt: p.diedAt,
       })),
-      map: room.map,
+      map: {
+        pellets: room.map.pellets,
+        confusionOrb: room.map.confusionOrb,
+      },
       debuff: room.debuff,
     });
   }

@@ -39,7 +39,7 @@ export function applyServerState(state: GameState, serverState: any, dt: number)
   }
   
   if (serverState.map) {
-    state.map = serverState.map;
+    state.map = { ...state.map, ...serverState.map };
     state.pellets = serverState.map.pellets || [];
   }
   
