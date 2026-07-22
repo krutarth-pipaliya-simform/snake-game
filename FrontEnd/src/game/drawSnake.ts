@@ -7,7 +7,6 @@ const HEAD_R = 15;      // matches COLLISION_RADIUS in engine
 export function drawSnake(
   ctx: CanvasRenderingContext2D,
   player: Player,
-  time: number,
   isScrambled: boolean = false,
   isTeammate: boolean = false,
   isSelf: boolean = false
@@ -43,7 +42,7 @@ export function drawSnake(
       ctx.save();
       ctx.globalAlpha = 0.2;
       ctx.translate(off.dx, off.dy);
-      ctx.fillStyle = `hsl(${(time / 5 + 120) % 360}, 100%, 60%)`;
+      ctx.fillStyle = '#ef4444';
       for (let i = total - 1; i >= 0; i--) {
         const seg = segs[i];
         ctx.beginPath();
@@ -87,7 +86,7 @@ export function drawSnake(
   }
 
   // Draw Head
-  _drawHead(ctx, player, displayColor, isScrambled, time);
+  _drawHead(ctx, player, displayColor, isScrambled);
 
   ctx.restore();
 
@@ -125,8 +124,7 @@ function _drawHead(
   ctx: CanvasRenderingContext2D,
   player: Player,
   displayColor: string,
-  isScrambled: boolean,
-  time: number
+  isScrambled: boolean
 ) {
   const head = player.segments[0];
   const r = HEAD_R;
@@ -149,7 +147,7 @@ function _drawHead(
 
   ctx.shadowBlur = 8;
   ctx.shadowColor = '#ffffff';
-  ctx.fillStyle = isScrambled ? `hsl(${(time / 3) % 360}, 100%, 70%)` : '#ffffff';
+  ctx.fillStyle = isScrambled ? '#ef4444' : '#ffffff';
 
   for (const ySign of [-1, 1]) {
     const ex = eyeOffsetX;

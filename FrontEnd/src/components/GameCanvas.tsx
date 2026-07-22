@@ -182,7 +182,7 @@ export function GameCanvas() {
           const isTeammate = player.team === localPlayer?.team;
           const isSelf = player.id === localPlayer?.id;
           const isScrambled = isConfused && !isSelf;
-          drawSnake(ctx, player as any, time, isScrambled, isTeammate, isSelf);
+          drawSnake(ctx, player as any, isScrambled, isTeammate, isSelf);
         }
       });
 
@@ -190,6 +190,11 @@ export function GameCanvas() {
       drawScorePopups(ctx, state.scorePopups);
 
       ctx.restore(); // remove camera translation
+
+      // Reset filter so it doesn't affect Fog of War or HUD
+      if (isConfused) {
+        ctx.filter = 'none';
+      }
 
       // Fog of War overlay (drawn over world, under HUD)
       if (isConfused) {
