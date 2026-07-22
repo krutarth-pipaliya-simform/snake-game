@@ -124,6 +124,32 @@ export function GameCanvas() {
       // Advance client-side visual state (popup fading)
       applyServerState(stateRef.current, { players: Object.values(stateRef.current.players) }, dt);
 
+      // Visual Extrapolation to fix stutter between 20Hz server ticks
+      const SPEED = 300;
+      Object.values(stateRef.current.players).forEach(player => {
+        if (player.alive && player.segments?.length > 0 && !player.inPipeTransit && player.direction) {
+          const isActuallyBoosting = player.boosting && player.segments.length > 3;
+          const speedMultiplier = isActuallyBoosting ? 1.5 : 1.0;
+          const moveDist = SPEED * dt * speedMultiplier;
+          
+          player.segments[0].x += player.direction.x * moveDist;
+          player.segments[0].y += player.direction.y * moveDist;
+          
+          // Pull body segments visually
+          for (let i = 1; i < player.segments.length; i++) {
+            const prev = player.segments[i - 1];
+            const curr = player.segments[i];
+            const dx = prev.x - curr.x;
+            const dy = prev.y - curr.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 15) {
+               curr.x += (dx / dist) * (dist - 15);
+               curr.y += (dy / dist) * (dist - 15);
+            }
+          }
+        }
+      });
+
       // === CSS filter for confusion ===
       const state = stateRef.current;
       const localPlayer = state.players[state.localPlayerId];
