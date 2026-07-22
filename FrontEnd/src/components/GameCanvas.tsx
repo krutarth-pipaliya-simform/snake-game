@@ -173,10 +173,7 @@ export function GameCanvas() {
       const dpr = window.devicePixelRatio || 1;
       ctx.scale(dpr, dpr);
 
-      // Apply high-quality native canvas filter only to the world (keeps HUD sharp)
-      if (isConfused) {
-        ctx.filter = 'saturate(0.35) hue-rotate(45deg) blur(2px)';
-      }
+      // Color distortion removed to fix severe canvas rendering lag
 
       const head = localPlayer?.segments?.[0] || { x: 2000, y: 2000 };
       const cameraX = logicalWidth / 2 - head.x;
@@ -217,10 +214,7 @@ export function GameCanvas() {
 
       ctx.restore(); // remove camera translation
 
-      // Reset filter so it doesn't affect Fog of War or HUD
-      if (isConfused) {
-        ctx.filter = 'none';
-      }
+      // Filter reset removed since we no longer apply it
 
       // Fog of War overlay (drawn over world, under HUD)
       if (isConfused) {
