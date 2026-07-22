@@ -1,6 +1,7 @@
 services:
   - type: web
     name: snake-game-backend
+    region: singapore
     env: node
     plan: free
     rootDir: BackEnd
@@ -21,6 +22,7 @@ services:
 
   - type: web
     name: snake-game-frontend
+    region: singapore
     env: static
     rootDir: FrontEnd
     buildCommand: npm install --include=dev && npm run build
