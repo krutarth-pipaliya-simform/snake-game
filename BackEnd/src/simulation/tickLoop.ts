@@ -33,6 +33,7 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
 
   // Clear expired debuffs
   if (room.debuff && now > room.debuff.expiresAt) {
+    console.log(`[Effect Expiration] Debuff expired in room ${room.code}`);
     room.debuff = null;
   }
 
@@ -172,17 +173,23 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     // Check Confusion Orb
     if (room.map.confusionOrb && room.map.confusionOrb.active) {
       if (distance(head, room.map.confusionOrb) < COLLISION_RADIUS + 25) { // Orb radius ~25
+        console.log(`[Orb Pickup Detection] Player ${player.id} on team ${player.team} collected the Confusion Orb!`);
         room.map.confusionOrb.active = false;
+        room.map.confusionOrb.spawnsAt = Date.now() + 25000;
         const debuffedTeams = Object.keys(room.teams).filter(id => id !== player.team);
+        console.log(`[Backend Processing] Debuffing teams: ${debuffedTeams.join(', ')}`);
         room.debuff = {
           teams: debuffedTeams,
-          expiresAt: Date.now() + 15000 // 15 seconds
+          expiresAt: Date.now() + 15000, // 15 seconds
+          clearedPlayers: []
         };
+        console.log(`[Event Emission] Set room.debuff:`, room.debuff);
         
         // Schedule reactivation after 25 seconds (15s debuff + 10s cooldown)
         setTimeout(() => {
           if (room.map.confusionOrb) {
             room.map.confusionOrb.active = true;
+            room.map.confusionOrb.spawnsAt = null;
             room.map.confusionOrb.x = Math.random() * (room.map.width - 400) + 200;
             room.map.confusionOrb.y = Math.random() * (room.map.height - 400) + 200;
             io.to(room.code).emit('room:state', room.toClientRoom()); // Re-sync orb pos
@@ -201,7 +208,11 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
 
       const isTeammate = player.team === other.team;
       // Debuff applies friendly-fire: only skip teammates when debuff is NOT active on this player's team
-      const debuffActive = !!(room.debuff && room.debuff.teams.includes(player.team || ''));
+      const debuffActive = !!(
+        room.debuff && 
+        room.debuff.teams.includes(player.team || '') &&
+        !room.debuff.clearedPlayers?.includes(player.id)
+      );
       if (isTeammate && !debuffActive) continue;
 
       for (let i = 0; i < other.segments.length; i++) {
@@ -239,6 +250,13 @@ export function simulateTick(room: RoomSimulation, io: Server<ClientEvents, Serv
     if (!player.alive && player.segments.length > 0) {
       player.diedAt = Date.now();
       
+      if (room.debuff) {
+        room.debuff.clearedPlayers = room.debuff.clearedPlayers || [];
+        if (!room.debuff.clearedPlayers.includes(player.id)) {
+          room.debuff.clearedPlayers.push(player.id);
+        }
+      }
+
       // Turn segments into pellets
       for (const seg of player.segments) {
         room.map.pellets.push({

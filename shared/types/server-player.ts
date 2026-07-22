@@ -5,4 +5,5 @@ export interface ServerPlayer extends Player {
   lastInputAt: number;
   isReady: boolean;
   diedAt: number | null;
+  ignoredPipeId?: string | null;
 }

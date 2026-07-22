@@ -116,13 +116,20 @@ export function GameCanvas() {
       // === CSS filter for confusion ===
       const state = stateRef.current;
       const localPlayer = state.players[state.localPlayerId];
-      const isConfused = !!(state.debuff && localPlayer?.team && state.debuff.teams.includes(localPlayer.team));
+      const isConfused = !!(
+        state.debuff && 
+        localPlayer?.team && 
+        state.debuff.teams.includes(localPlayer.team) &&
+        !state.debuff.clearedPlayers?.includes(localPlayer.id)
+      );
 
       if (containerRef.current) {
         if (isConfused && !wasConfusedRef.current) {
+          console.log(`[Effect Activation] Confusion effect ACTIVATED for local player on team ${localPlayer?.team}`);
           containerRef.current.classList.add('confused-canvas');
           wasConfusedRef.current = true;
         } else if (!isConfused && wasConfusedRef.current) {
+          console.log(`[Effect Activation] Confusion effect DEACTIVATED for local player`);
           containerRef.current.classList.remove('confused-canvas');
           wasConfusedRef.current = false;
         }
@@ -195,7 +202,9 @@ export function GameCanvas() {
           state.players,
           localPlayer,
           isConfused,
-          debuffExpiresAt
+          debuffExpiresAt,
+          state.map.pipes,
+          state.map.confusionOrb
         );
 
         const isRoundActive = room?.status !== 'round_ended' && room?.status !== 'match_ended';

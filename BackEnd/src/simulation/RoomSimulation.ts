@@ -11,6 +11,34 @@ export function nextColor(): string {
   return PLAYER_COLORS[colorIndex++ % PLAYER_COLORS.length];
 }
 
+export function generateRandomPipes(width: number, height: number): Room['map']['pipes'] {
+  const pairCount = Math.floor(Math.random() * 3) + 2; // 2, 3, or 4 pairs
+  const pipes: Room['map']['pipes'] = [];
+  const padding = 400;
+  
+  for (let i = 0; i < pairCount; i++) {
+    const id1 = `pipe-${i * 2 + 1}`;
+    const id2 = `pipe-${i * 2 + 2}`;
+    
+    let x1 = padding + Math.random() * (width - 2 * padding);
+    let y1 = padding + Math.random() * (height - 2 * padding);
+    let x2 = padding + Math.random() * (width - 2 * padding);
+    let y2 = padding + Math.random() * (height - 2 * padding);
+    
+    // Ensure portals in a pair are far enough apart to make it an interesting jump
+    while (Math.hypot(x2 - x1, y2 - y1) < 1200) {
+      x2 = padding + Math.random() * (width - 2 * padding);
+      y2 = padding + Math.random() * (height - 2 * padding);
+    }
+    
+    pipes.push(
+      { id: id1, x: x1, y: y1, linkedPipeId: id2 },
+      { id: id2, x: x2, y: y2, linkedPipeId: id1 }
+    );
+  }
+  return pipes;
+}
+
 export class RoomSimulation {
   code: string;
   hostId: string;
@@ -43,19 +71,13 @@ export class RoomSimulation {
       'team-1': { leaderId: '', playerIds: [] },
       'team-2': { leaderId: '', playerIds: [] },
     };
-    const generatedPipes = [
-      { id: 'pipe-1', x: 1500, y: 1500, linkedPipeId: 'pipe-2' },
-      { id: 'pipe-2', x: 2500, y: 2500, linkedPipeId: 'pipe-1' },
-      { id: 'pipe-3', x: 2500, y: 1500, linkedPipeId: 'pipe-4' },
-      { id: 'pipe-4', x: 1500, y: 2500, linkedPipeId: 'pipe-3' }
-    ];
 
     this.map = {
       width: 4000,
       height: 4000,
-      pipes: generatedPipes,
+      pipes: generateRandomPipes(4000, 4000),
       pellets: [],
-      confusionOrb: { x: 2000, y: 2000, active: true },
+      confusionOrb: { x: 2000, y: 2000, active: true, spawnsAt: null },
     };
     this.debuff = null;
     this.players = {

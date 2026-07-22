@@ -1,16 +1,15 @@
 import { useEffect, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { socket } from '../realtime/socketClient';
-import { setRoom } from '../store/roomSlice';
-import { setLocalPlayerId } from '../store/localPlayerSlice';
+import { setRoom, setRoundResults } from '../store/roomSlice';
+import { setLocalPlayerId, setReady } from '../store/localPlayerSlice';
 import type { Room } from '../../../shared/types/room';
 
 export function useRoomSync() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    // Listen for authoritative room state from server
-    socket.on('room:state', (roomState) => {
+    const onRoomState = (roomState: unknown) => {
       const room = roomState as Room;
       dispatch(setRoom(room));
       
@@ -22,15 +21,27 @@ export function useRoomSync() {
           break;
         }
       }
-    });
+    };
 
-    socket.on('error', ({ message }) => {
+    const onError = ({ message }: { message: string }) => {
       console.error('[Server Error]', message);
-    });
+    };
+
+    const onRoundEnded = (results: unknown) => {
+      dispatch(setRoundResults(results as any));
+      // Reset local isReady so the round-end overlay starts with unready state
+      dispatch(setReady(false));
+    };
+
+    // Listen for authoritative room state from server
+    socket.on('room:state', onRoomState);
+    socket.on('error', onError);
+    socket.on('round:ended', onRoundEnded);
 
     return () => {
-      socket.off('room:state');
-      socket.off('error');
+      socket.off('room:state', onRoomState);
+      socket.off('error', onError);
+      socket.off('round:ended', onRoundEnded);
     };
   }, [dispatch]);
 

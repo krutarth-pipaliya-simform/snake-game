@@ -1,4 +1,4 @@
-// Phase 1 — Background rendering: grid + border
+// Phase 9 — Confusion Orb visual improvements + Phase 1 background
 export function drawBackground(
   ctx: CanvasRenderingContext2D,
   cameraOffsetX: number,
@@ -12,13 +12,13 @@ export function drawBackground(
   const GRID = 100;
 
   // Line grid — matches original canvas aesthetic
-  ctx.strokeStyle = '#2a2a3e';
+  ctx.strokeStyle = isConfused ? 'rgba(139, 92, 246, 0.25)' : '#2a2a3e';
   ctx.lineWidth = 1;
   const startX = Math.floor(-cameraOffsetX / GRID) * GRID;
   const startY = Math.floor(-cameraOffsetY / GRID) * GRID;
-  
+
   // Wavy grid distortion if confused
-  const waveAmplitude = isConfused ? 15 : 0;
+  const waveAmplitude = isConfused ? 18 : 0;
   const waveFrequency = 0.005;
 
   for (let x = startX; x < startX + canvasW + GRID; x += GRID) {
@@ -53,34 +53,120 @@ export function drawBackground(
   ctx.shadowBlur = 0;
 }
 
-export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x: number; y: number }[], time: number) {
+export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x: number; y: number; linkedPipeId?: string }[], time: number) {
+  // 1. Draw connections first so they render under the pipes
+  const drawnLinks = new Set<string>();
+  
+  for (const pipe of pipes) {
+    if (!pipe.linkedPipeId) continue;
+    const linked = pipes.find(p => p.id === pipe.linkedPipeId);
+    if (!linked) continue;
+
+    const linkKey = [pipe.id, linked.id].sort().join('_');
+    if (drawnLinks.has(linkKey)) continue;
+    drawnLinks.add(linkKey);
+
+    const x1 = pipe.x;
+    const y1 = pipe.y;
+    const x2 = linked.x;
+    const y2 = linked.y;
+    
+    // Choose horizontal or vertical first based on IDs so it's consistent for this pair
+    const isVerticalFirst = (pipe.id > linked.id); 
+
+    const dx = Math.abs(x2 - x1);
+    const dy = Math.abs(y2 - y1);
+    const radius = Math.min(50, dx / 2, dy / 2);
+
+    const buildPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      if (isVerticalFirst) {
+        const yMid = (y1 + y2) / 2;
+        ctx.arcTo(x1, yMid, x2, yMid, radius);
+        ctx.arcTo(x2, yMid, x2, y2, radius);
+      } else {
+        const xMid = (x1 + x2) / 2;
+        ctx.arcTo(xMid, y1, xMid, y2, radius);
+        ctx.arcTo(xMid, y2, x2, y2, radius);
+      }
+      ctx.lineTo(x2, y2);
+    };
+
+    ctx.save();
+    
+    // Base tunnel path (very subtle, muted)
+    buildPath();
+    ctx.lineWidth = 18;
+    ctx.strokeStyle = 'rgba(25, 20, 35, 0.06)'; // Muted dark background, very faint
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Animated energy streams (subtle)
+    const dashSpeed = time / 45;
+    const pulseOpacity = 0.05 + (Math.sin(time / 200) + 1) / 2 * 0.05; // 0.05 to 0.10 opacity
+
+    // Stream 1 (forward)
+    ctx.save();
+    buildPath();
+    ctx.setLineDash([12, 60]);
+    ctx.lineDashOffset = -dashSpeed;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(139, 92, 246, ${pulseOpacity})`; // Very subdued violet
+    ctx.shadowBlur = 2; // Barely any glow
+    ctx.shadowColor = '#8B5CF6';
+    ctx.stroke();
+    ctx.restore();
+
+    // Stream 2 (reverse)
+    ctx.save();
+    buildPath();
+    ctx.setLineDash([12, 60]);
+    ctx.lineDashOffset = dashSpeed;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(139, 92, 246, ${pulseOpacity})`;
+    ctx.shadowBlur = 2;
+    ctx.shadowColor = '#8B5CF6';
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  // 2. Draw the pipes themselves on top of the connections
   for (const pipe of pipes) {
     ctx.save();
     ctx.translate(pipe.x, pipe.y);
-    
-    // Portal swirling effect
-    ctx.rotate(time / 500);
-    
-    // Outer glow
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = '#8B5CF6'; // purple glow
-    
-    // Outer ring
-    ctx.beginPath();
-    ctx.arc(0, 0, 30, 0, Math.PI * 2);
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#8B5CF6';
-    ctx.stroke();
 
-    // Inner pulsing ring
-    const pulse = (Math.sin(time / 200) + 1) / 2; // 0 to 1
+    // Outer glow (reduced)
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(109, 40, 217, 0.5)';
+
+    // Vortex rings (subtler)
+    for (let i = 0; i < 3; i++) {
+      ctx.save();
+      ctx.rotate((time / (300 + i * 100)) * (i % 2 === 0 ? 1 : -1));
+      ctx.beginPath();
+      ctx.arc(0, 0, 35 - i * 8, 0, Math.PI * 1.5);
+      ctx.lineWidth = 1 + i;
+      ctx.strokeStyle = i === 0 ? 'rgba(139, 92, 246, 0.35)' : (i === 1 ? 'rgba(167, 139, 250, 0.2)' : 'rgba(196, 181, 253, 0.1)');
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Deep center
     ctx.beginPath();
-    ctx.arc(0, 0, 20 + 5 * pulse, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(139, 92, 246, ${0.3 + 0.3 * pulse})`;
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // More transparent center
     ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#A78BFA';
-    ctx.stroke();
+
+    // Inner pulsing energy
+    const pulse = (Math.sin(time / 150) + 1) / 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 10 + 5 * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(139, 92, 246, ${0.1 + 0.15 * pulse})`;
+    ctx.fill();
 
     ctx.restore();
   }
@@ -88,50 +174,87 @@ export function drawPipes(ctx: CanvasRenderingContext2D, pipes: { id: string; x:
 
 export function drawConfusionOrb(ctx: CanvasRenderingContext2D, orb: { x: number, y: number, active: boolean }, time: number) {
   if (!orb.active) return;
-  
+
   ctx.save();
   ctx.translate(orb.x, orb.y);
-  
-  // Floating orb with dark energy
-  ctx.shadowBlur = 25;
-  ctx.shadowColor = '#000000';
-  
+
+  const outerPulse = (Math.sin(time / 300) + 1) / 2;
+  const innerPulse = (Math.sin(time / 150) + 1) / 2;
+
+  // Large outer warning ring
+  ctx.beginPath();
+  ctx.arc(0, 0, 45 + outerPulse * 8, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(236, 72, 153, ${0.15 + outerPulse * 0.25})`;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Mid ring — spinning
+  ctx.save();
+  ctx.rotate(time / 400);
+  ctx.beginPath();
+  ctx.arc(0, 0, 33, 0, Math.PI * 1.6);
+  ctx.strokeStyle = `rgba(139, 92, 246, ${0.5 + outerPulse * 0.3})`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  // Outer glow
+  ctx.shadowBlur = 35 + outerPulse * 20;
+  ctx.shadowColor = '#EC4899';
+
+  // Main orb body
+  const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 25);
+  grad.addColorStop(0, '#EC4899');
+  grad.addColorStop(0.5, '#8B5CF6');
+  grad.addColorStop(1, '#1e1035');
   ctx.beginPath();
   ctx.arc(0, 0, 25, 0, Math.PI * 2);
-  ctx.fillStyle = '#111827';
+  ctx.fillStyle = grad;
   ctx.fill();
-  
-  // Swirling purple/black energy inside
+
+  // Swirling energy blobs
+  ctx.shadowBlur = 0;
+  ctx.save();
   ctx.rotate(-time / 300);
+  ctx.globalAlpha = 0.6 + innerPulse * 0.3;
   ctx.beginPath();
   ctx.arc(10, 0, 8, 0, Math.PI * 2);
-  ctx.fillStyle = '#8B5CF6';
+  ctx.fillStyle = '#C4B5FD';
   ctx.fill();
-  
   ctx.beginPath();
   ctx.arc(-10, 0, 8, 0, Math.PI * 2);
-  ctx.fillStyle = '#EC4899';
+  ctx.fillStyle = '#F9A8D4';
+  ctx.fill();
+  ctx.restore();
+
+  // Central bright core
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, 0, 5 + innerPulse * 3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
   ctx.fill();
 
   ctx.restore();
 }
 
 export function drawFogOfWar(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number, time: number) {
-  // Smoky dark-grey overlay with transparent hole in the middle
-  const holeRadius = 250 + Math.sin(time / 200) * 10; // Pulsing vision radius
-  
+  // Smoky dark-grey overlay with transparent hole in the middle — reduced visibility per spec
+  const holeRadius = 200 + Math.sin(time / 200) * 15; // Pulsing, smaller than normal
+
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
-  
+
   const cx = canvasW / 2;
   const cy = canvasH / 2;
 
-  const gradient = ctx.createRadialGradient(cx, cy, holeRadius * 0.5, cx, cy, holeRadius);
-  gradient.addColorStop(0, 'rgba(17, 24, 39, 0)');    // transparent center
-  gradient.addColorStop(1, 'rgba(17, 24, 39, 0.95)'); // almost opaque grey-black
+  const gradient = ctx.createRadialGradient(cx, cy, holeRadius * 0.4, cx, cy, holeRadius);
+  gradient.addColorStop(0, 'rgba(17, 24, 39, 0)');      // transparent center
+  gradient.addColorStop(0.7, 'rgba(17, 24, 39, 0.7)');  // soft edge
+  gradient.addColorStop(1, 'rgba(17, 24, 39, 0.97)');   // almost opaque
 
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvasW, canvasH);
-  
+
   ctx.restore();
 }

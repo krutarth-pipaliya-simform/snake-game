@@ -5,10 +5,12 @@ import type { Room, RoomStatus, RoomSettings } from '../types/room';
 interface RoomState {
   /** Current room data — null when not in a room */
   current: Room | null;
+  roundResults: { winner: string | null; teamResults: Record<string, {score: number, kills: number}> } | null;
 }
 
 const initialState: RoomState = {
   current: null,
+  roundResults: null,
 };
 
 export const roomSlice = createSlice({
@@ -30,9 +32,13 @@ export const roomSlice = createSlice({
     },
     clearRoom(state) {
       state.current = null;
+      state.roundResults = null;
     },
+    setRoundResults(state, action: PayloadAction<{ winner: string | null; teamResults: Record<string, {score: number, kills: number}> }>) {
+      state.roundResults = action.payload;
+    }
   },
 });
 
-export const { setRoom, updateStatus, updateSettings, clearRoom } = roomSlice.actions;
+export const { setRoom, updateStatus, updateSettings, clearRoom, setRoundResults } = roomSlice.actions;
 export default roomSlice.reducer;
